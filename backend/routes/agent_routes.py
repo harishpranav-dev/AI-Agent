@@ -10,6 +10,8 @@ from pydantic import BaseModel
 from agents.test_agent import TestAgent
 from agents.planner_agent import PlannerAgent
 from agents.researcher_agent import ResearcherAgent
+from agents.writer_agent import WriterAgent
+from agents.orchestrator import Orchestrator
 
 router = APIRouter(prefix="/api", tags=["agents"])
 
@@ -23,6 +25,18 @@ class ResearchRequest(BaseModel):
     """Request body for the Researcher Agent."""
     subtask: str
     goal_context: str = ""
+
+
+class WriterRequest(BaseModel):
+    """Request body for the Writer Agent."""
+    goal: str
+    all_findings: list
+
+
+class RunRequest(BaseModel):
+    """Request body for the full multi-agent pipeline."""
+    goal: str
+    mode: str = "multi"
 
 
 @router.post("/test-agent")
@@ -62,6 +76,46 @@ async def run_researcher(request: ResearchRequest):
             "subtask": request.subtask,
             "goal_context": request.goal_context
         })
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/writer")
+async def run_writer(request: WriterRequest):
+    """Run the Writer Agent to produce final report."""
+    try:
+        writer = WriterAgent()
+        result = await writer.run({
+            "goal": request.goal,
+            "all_findings": request.all_findings
+        })
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/run")
+async def run_agents(request: RunRequest):
+    """
+    Run the full multi-agent pipeline.
+
+    This is the main endpoint — it triggers:
+    Planner → Researcher (per subtask) → Writer
+
+    Args (JSON body):
+        goal: The user's research goal
+        mode: "multi" (full pipeline) or "single" (skip researcher)
+
+    Returns:
+        Complete task result with plan, report, and stats
+    """
+    try:
+        orchestrator = Orchestrator()
+        result = await orchestrator.run(
+            goal=request.goal,
+            mode=request.mode
+        )
         return result
     except Exception as e:
         return {"success": False, "error": str(e)}
