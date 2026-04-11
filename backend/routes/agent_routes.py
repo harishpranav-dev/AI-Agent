@@ -12,6 +12,7 @@ from agents.planner_agent import PlannerAgent
 from agents.researcher_agent import ResearcherAgent
 from agents.writer_agent import WriterAgent
 from agents.orchestrator import Orchestrator
+from streaming.websocket_manager import ws_manager
 
 router = APIRouter(prefix="/api", tags=["agents"])
 
@@ -34,9 +35,17 @@ class WriterRequest(BaseModel):
 
 
 class RunRequest(BaseModel):
-    """Request body for the full multi-agent pipeline."""
+    """
+    Request body for the full multi-agent pipeline.
+    
+    client_id connects this HTTP request to the right WebSocket.
+    The frontend sends the same client_id when it opens the WebSocket
+    AND when it calls /api/run — this is how we know which browser
+    tab should receive the live progress events.
+    """
     goal: str
     mode: str = "multi"
+    client_id: str = "default"
 
 
 @router.post("/test-agent")
@@ -98,20 +107,33 @@ async def run_writer(request: WriterRequest):
 @router.post("/run")
 async def run_agents(request: RunRequest):
     """
-    Run the full multi-agent pipeline.
+    Run the full multi-agent pipeline with real-time WebSocket updates.
 
     This is the main endpoint — it triggers:
     Planner → Researcher (per subtask) → Writer
 
+    The client_id links this request to a WebSocket connection.
+    As agents work, progress events are pushed to the client
+    in real time through the WebSocket.
+
     Args (JSON body):
         goal: The user's research goal
         mode: "multi" (full pipeline) or "single" (skip researcher)
+        client_id: Unique ID matching the client's WebSocket connection
 
     Returns:
         Complete task result with plan, report, and stats
     """
     try:
-        orchestrator = Orchestrator()
+        # Create a callback that sends events to THIS specific client.
+        # This closure "captures" request.client_id so the Orchestrator
+        # doesn't need to know anything about WebSockets — it just
+        # calls emit() and events magically reach the right browser tab.
+        async def emit_to_client(event_type: str, data: dict) -> None:
+            """Send an event to the connected WebSocket client."""
+            await ws_manager.send_event(request.client_id, event_type, data)
+
+        orchestrator = Orchestrator(event_callback=emit_to_client)
         result = await orchestrator.run(
             goal=request.goal,
             mode=request.mode

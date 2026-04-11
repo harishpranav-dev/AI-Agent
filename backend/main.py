@@ -4,17 +4,22 @@ purpose: FastAPI application entry point for AutoAgent Studio backend.
 author: HP & Mushan
 """
 
+import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
+from fastapi.responses import FileResponse
 
+from streaming.websocket_manager import ws_manager
 from routes.agent_routes import router as agent_router
 from routes.history_routes import router as history_router
 from db.mongo import connect_db, close_db
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -52,6 +57,25 @@ app.include_router(agent_router)
 app.include_router(history_router)
 
 
+@app.websocket("/ws/{client_id}")
+async def websocket_endpoint(websocket: WebSocket, client_id: str):
+    """
+    WebSocket endpoint for real-time agent progress streaming.
+
+    Clients connect to ws://localhost:8000/ws/{some-unique-id}
+    and receive JSON events as agents work.
+    The connection stays open until the client disconnects.
+    """
+    await ws_manager.connect(websocket, client_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            logger.info(f"WS message from {client_id}: {data}")
+    except WebSocketDisconnect:
+        ws_manager.disconnect(client_id)
+        logger.info(f"Client {client_id} disconnected from WebSocket")
+
+
 @app.get("/")
 async def root():
     """Health check endpoint — confirms the server is running."""
@@ -67,3 +91,8 @@ async def health():
         "tavily_key": "set" if os.getenv("TAVILY_API_KEY") else "missing",
         "mongodb_url": "set" if os.getenv("MONGODB_URL") else "missing",
     }
+
+@app.get("/ws-test")
+async def ws_test_page():
+    """Serve the WebSocket test page."""
+    return FileResponse("tests/ws_test.html")

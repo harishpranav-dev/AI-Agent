@@ -1,0 +1,210 @@
+<!doctype html>
+<html>
+  <head>
+    <title>WebSocket Test — AutoAgent Studio</title>
+    <style>
+      body {
+        font-family: "Segoe UI", sans-serif;
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 20px;
+        background: #1a1a2e;
+        color: #e0e0e0;
+      }
+      h2 {
+        color: #00d4ff;
+      }
+      #status {
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        font-weight: bold;
+      }
+      .connected {
+        background: #0a3d0a;
+        color: #4cff4c;
+      }
+      .disconnected {
+        background: #3d0a0a;
+        color: #ff4c4c;
+      }
+      .connecting {
+        background: #3d3d0a;
+        color: #ffff4c;
+      }
+      #events {
+        font-family: "Consolas", monospace;
+        font-size: 14px;
+        background: #0f0f23;
+        padding: 20px;
+        border-radius: 8px;
+        max-height: 500px;
+        overflow-y: auto;
+        border: 1px solid #333;
+      }
+      .event-line {
+        margin: 8px 0;
+        padding: 8px 12px;
+        border-radius: 4px;
+        border-left: 4px solid;
+      }
+      .event-task_started {
+        border-color: #00d4ff;
+        background: #0a1a2e;
+      }
+      .event-planner_thinking {
+        border-color: #ff9800;
+        background: #2e1a0a;
+      }
+      .event-planner_complete {
+        border-color: #4caf50;
+        background: #0a2e0a;
+      }
+      .event-researcher_thinking {
+        border-color: #ff9800;
+        background: #2e1a0a;
+      }
+      .event-researcher_complete {
+        border-color: #4caf50;
+        background: #0a2e0a;
+      }
+      .event-writer_thinking {
+        border-color: #ff9800;
+        background: #2e1a0a;
+      }
+      .event-task_complete {
+        border-color: #00ff88;
+        background: #0a2e1a;
+      }
+      .event-task_error {
+        border-color: #ff4444;
+        background: #2e0a0a;
+      }
+      .event-type {
+        font-weight: bold;
+        color: #00d4ff;
+      }
+      .event-data {
+        color: #aaa;
+        font-size: 12px;
+        margin-top: 4px;
+      }
+      button {
+        background: #00d4ff;
+        color: #000;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 6px;
+        font-size: 16px;
+        cursor: pointer;
+        margin-top: 10px;
+      }
+      button:hover {
+        background: #00b8d4;
+      }
+      button:disabled {
+        background: #555;
+        cursor: not-allowed;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>WebSocket Test — AutoAgent Studio</h2>
+    <div id="status" class="connecting">Connecting to WebSocket...</div>
+    <button id="runBtn" disabled onclick="runAgents()">
+      Run Agents (Multi Mode)
+    </button>
+    <h3>Live Events:</h3>
+    <div id="events"><em>Waiting for events...</em></div>
+
+    <script>
+      // Generate a unique client ID for this browser tab
+      const clientId = "test-" + Math.random().toString(36).substr(2, 8);
+      const statusDiv = document.getElementById("status");
+      const eventsDiv = document.getElementById("events");
+      const runBtn = document.getElementById("runBtn");
+      let firstEvent = true;
+
+      // Use the same host the page was loaded from (avoids CORS issues)
+      const wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      const wsUrl = `${wsProtocol}//${window.location.host}/ws/${clientId}`;
+      const apiUrl = `/api/run`;
+
+      // Step 1: Connect to WebSocket
+      const ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        statusDiv.textContent = `Connected! Client ID: ${clientId}`;
+        statusDiv.className = "connected";
+        runBtn.disabled = false;
+      };
+
+      ws.onclose = () => {
+        statusDiv.textContent = "Disconnected from WebSocket";
+        statusDiv.className = "disconnected";
+        runBtn.disabled = true;
+      };
+
+      ws.onerror = (err) => {
+        statusDiv.textContent =
+          "WebSocket error — is the backend running on port 8000?";
+        statusDiv.className = "disconnected";
+      };
+
+      // Step 2: Display incoming events
+      ws.onmessage = (e) => {
+        if (firstEvent) {
+          eventsDiv.innerHTML = "";
+          firstEvent = false;
+        }
+
+        const message = JSON.parse(e.data);
+        const eventType = message.event;
+        const eventData = message.data;
+
+        const line = document.createElement("div");
+        line.className = `event-line event-${eventType}`;
+        line.innerHTML = `
+                <div class="event-type">${eventType}</div>
+                <div class="event-data">${JSON.stringify(eventData, null, 2)}</div>
+            `;
+        eventsDiv.appendChild(line);
+        eventsDiv.scrollTop = eventsDiv.scrollHeight;
+
+        // Re-enable button when task completes or errors
+        if (eventType === "task_complete" || eventType === "task_error") {
+          runBtn.disabled = false;
+        }
+      };
+
+      // Step 3: Trigger agent run via HTTP POST
+      function runAgents() {
+        runBtn.disabled = true;
+        firstEvent = true;
+        eventsDiv.innerHTML = "<em>Starting agent pipeline...</em>";
+
+        fetch(apiUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            goal: "What are the top 3 benefits of drinking water daily?",
+            mode: "multi",
+            client_id: clientId,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            console.log("HTTP response:", data);
+          })
+          .catch((err) => {
+            console.error("HTTP error:", err);
+            eventsDiv.innerHTML += `<div class="event-line event-task_error">
+                    <div class="event-type">HTTP Error</div>
+                    <div class="event-data">${err.message}</div>
+                </div>`;
+            runBtn.disabled = false;
+          });
+      }
+    </script>
+  </body>
+</html>
