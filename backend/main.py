@@ -4,18 +4,40 @@ purpose: FastAPI application entry point for AutoAgent Studio backend.
 author: HP & Mushan
 """
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
+
 from routes.agent_routes import router as agent_router
+from routes.history_routes import router as history_router
+from db.mongo import connect_db, close_db
 
 load_dotenv()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Manage app startup and shutdown events.
+
+    - On startup: connect to MongoDB
+    - On shutdown: close the MongoDB connection
+
+    This is FastAPI's modern way of handling lifecycle events.
+    The 'yield' separates startup logic (before) from shutdown logic (after).
+    """
+    await connect_db()
+    yield
+    await close_db()
+
 
 app = FastAPI(
     title="AutoAgent Studio API",
     description="Backend for AI Agents & Autonomous Systems",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 app.add_middleware(
@@ -27,6 +49,7 @@ app.add_middleware(
 )
 
 app.include_router(agent_router)
+app.include_router(history_router)
 
 
 @app.get("/")

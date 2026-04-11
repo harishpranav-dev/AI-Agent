@@ -16,6 +16,7 @@ from typing import Optional, Callable
 from agents.planner_agent import PlannerAgent
 from agents.researcher_agent import ResearcherAgent
 from agents.writer_agent import WriterAgent
+from db.mongo import get_tasks_collection
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,8 @@ class Orchestrator:
         2. Runs the Planner to get subtasks
         3. Runs the Researcher on each subtask (multi mode only)
         4. Runs the Writer to produce the final report
-        5. Returns the complete result with stats
+        5. Saves the completed task to MongoDB
+        6. Returns the complete result with stats
 
         Args:
             goal: User's research goal (e.g., "Research benefits of meditation")
@@ -241,6 +243,36 @@ class Orchestrator:
                 "duration_seconds": duration,
                 "stats": task_memory["stats"]
             })
+
+            # --- Save completed task to MongoDB ---
+            try:
+                collection = get_tasks_collection()
+                doc = {
+                    "task_id": task_id,
+                    "session_id": "default",
+                    "goal": goal,
+                    "mode": mode,
+                    "status": "complete",
+                    "plan": task_memory["plan"],
+                    "research": [
+                        f.get("findings", {})
+                        for f in task_memory["all_findings"]
+                    ],
+                    "report": task_memory["report"],
+                    "metadata": {
+                        "total_time_seconds": duration,
+                        "tools_called": task_memory["stats"]["tools_called"],
+                        "agents_used": task_memory["stats"]["agents_used"],
+                        "steps_completed": task_memory["stats"]["steps_completed"],
+                        "word_count": writer_result.get("word_count", 0)
+                    },
+                    "created_at": start_time.isoformat(),
+                    "completed_at": end_time.isoformat()
+                }
+                await collection.insert_one(doc)
+                logger.info(f"Task {task_id} saved to MongoDB")
+            except Exception as e:
+                logger.warning(f"Failed to save task to MongoDB: {e}")
 
             return {
                 "success": True,
