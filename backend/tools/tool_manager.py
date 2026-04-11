@@ -1,67 +1,90 @@
 """
 module: tool_manager.py
-purpose: Central tool router. When an agent decides to use a tool,
-         this manager routes the call to the right function.
+purpose: Routes tool calls from Claude API responses to the correct
+         handler function. Acts as a registry of all available tools.
+author: HP & Mushan
 """
 
 import logging
-from tools.web_search import execute_web_search
+from tools.web_search import web_search
+from tools.text_tools import summarize_text, format_report
 
 logger = logging.getLogger(__name__)
 
+# Registry: maps tool names (as Claude knows them) to handler functions
+TOOL_REGISTRY = {
+    "web_search": web_search,
+    "summarize_text": summarize_text,
+    "format_report": format_report,
+}
 
-class ToolManager:
-    """Routes tool calls from agents to actual implementations."""
+# Tool definitions sent to Claude API so it knows what tools are available
+TOOL_DEFINITIONS = [
+    {
+        "name": "web_search",
+        "description": "Search the internet for current information on any topic. Returns titles, URLs, and content snippets.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The search query to look up"
+                }
+            },
+            "required": ["query"]
+        }
+    },
+    {
+        "name": "summarize_text",
+        "description": "Summarize a long piece of text into a shorter version.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "text": {
+                    "type": "string",
+                    "description": "The text to summarize"
+                },
+                "max_length": {
+                    "type": "integer",
+                    "description": "Maximum length of summary in characters",
+                    "default": 300
+                }
+            },
+            "required": ["text"]
+        }
+    }
+]
 
-    async def execute(self, tool_name: str, tool_input: dict) -> str:
-        """
-        Execute a tool by name with given input.
 
-        Args:
-            tool_name: Name matching a registered tool (e.g. "web_search")
-            tool_input: Input parameters for the tool
+async def execute_tool(tool_name: str, tool_input: dict) -> str:
+    """
+    Execute a tool by name with the given input.
 
-        Returns:
-            Tool result as a formatted string (Claude needs string responses)
-        """
-        logger.info(f"ToolManager: Executing tool '{tool_name}'")
+    This is called when Claude's response includes a tool_use block.
+    We look up the tool in our registry and run it.
 
-        try:
-            if tool_name == "web_search":
-                result = await execute_web_search(
-                    query=tool_input.get("query", ""),
-                    max_results=tool_input.get("max_results", 3)
-                )
-                return self._format_search_result(result)
+    Args:
+        tool_name: Name of the tool Claude wants to call.
+        tool_input: Dict of arguments Claude provided for the tool.
 
-            else:
-                logger.warning(f"ToolManager: Unknown tool '{tool_name}'")
-                return f"Tool '{tool_name}' is not registered"
+    Returns:
+        String result to send back to Claude as tool_result.
+    """
+    if tool_name not in TOOL_REGISTRY:
+        error_msg = f"Unknown tool: {tool_name}"
+        logger.error(error_msg)
+        return f"Error: {error_msg}"
 
-        except Exception as e:
-            logger.error(f"ToolManager: Tool '{tool_name}' failed: {e}")
-            return f"Tool execution failed: {str(e)}"
-
-    def _format_search_result(self, result: dict) -> str:
-        """
-        Format search results into a readable string for Claude.
-        Claude receives this text and uses it to form its research findings.
-
-        Args:
-            result: Raw dict from execute_web_search
-
-        Returns:
-            Human-readable string of search results
-        """
-        if "error" in result and result.get("results") == []:
-            return f"Search failed: {result['error']}"
-
-        output = f"Search query: {result.get('query', '')}\n\n"
-
-        for i, r in enumerate(result.get("results", []), 1):
-            output += f"Result {i}:\n"
-            output += f"Title: {r.get('title', 'No title')}\n"
-            output += f"Content: {r.get('content', 'No content')}\n"
-            output += f"Source: {r.get('url', 'No URL')}\n\n"
-
-        return output
+    try:
+        handler = TOOL_REGISTRY[tool_name]
+        result = await handler(**tool_input)
+        logger.info(f"Tool '{tool_name}' executed successfully")
+        return str(result)
+    except TypeError as e:
+        error_msg = f"Invalid arguments for tool '{tool_name}': {e}"
+        logger.error(error_msg)
+        return f"Error: {error_msg}"
+    except Exception as e:
+        error_msg = f"Tool '{tool_name}' failed: {e}"
+        logger.error(error_msg)
+        return f"Error: {error_msg}"

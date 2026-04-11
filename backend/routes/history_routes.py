@@ -1,99 +1,74 @@
 """
 module: history_routes.py
 purpose: API routes for retrieving task history from MongoDB.
-         Provides endpoints to list, view, and delete past agent runs.
+         GET /api/history/{session_id} — all tasks for a session.
+         GET /api/history/task/{task_id} — single task details.
 author: HP & Mushan
 """
 
 import logging
 from fastapi import APIRouter
-from db.mongo import get_tasks_collection
-from db.models import format_task_for_response
+
+from db.mongo import get_database
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/api/history", tags=["history"])
+router = APIRouter()
 
 
-@router.get("/{session_id}")
-async def get_session_history(session_id: str, limit: int = 20):
+@router.get("/api/history/{session_id}")
+async def get_session_history(session_id: str):
     """
-    Get all tasks for a session, most recent first.
-
-    Each browser session has its own history. This endpoint
-    returns up to 'limit' tasks sorted newest-first.
+    Get all tasks for a given browser session, newest first.
 
     Args:
-        session_id: Browser session identifier.
-        limit: Maximum number of tasks to return (default 20).
+        session_id: The browser session identifier.
 
     Returns:
-        { success: True, tasks: [...], count: int }
+        List of task documents for that session.
     """
+    database = get_database()
+    if not database:
+        return {"success": False, "error": "Database not available", "tasks": []}
+
     try:
-        collection = get_tasks_collection()
-
-        cursor = collection.find(
+        cursor = database.tasks.find(
             {"session_id": session_id},
-            sort=[("created_at", -1)],
-            limit=limit
-        )
+            {"_id": 0}  # Exclude MongoDB's internal _id field
+        ).sort("created_at", -1).limit(50)
 
-        tasks = []
-        async for task in cursor:
-            tasks.append(format_task_for_response(task))
-
-        return {"success": True, "tasks": tasks, "count": len(tasks)}
-
+        tasks = await cursor.to_list(length=50)
+        logger.info(f"GET /api/history/{session_id} — returned {len(tasks)} tasks")
+        return {"success": True, "tasks": tasks}
     except Exception as e:
         logger.error(f"History fetch failed: {e}")
         return {"success": False, "error": str(e), "tasks": []}
 
 
-@router.get("/task/{task_id}")
+@router.get("/api/history/task/{task_id}")
 async def get_task_by_id(task_id: str):
     """
-    Get a specific task by its unique task_id.
+    Get a single task by its unique task_id.
 
     Args:
-        task_id: The UUID string assigned when the task was created.
+        task_id: The UUID of the task.
 
     Returns:
-        { success: True, task: {...} } or error if not found.
+        The full task document.
     """
+    database = get_database()
+    if not database:
+        return {"success": False, "error": "Database not available"}
+
     try:
-        collection = get_tasks_collection()
-        task = await collection.find_one({"task_id": task_id})
+        task = await database.tasks.find_one(
+            {"task_id": task_id},
+            {"_id": 0}
+        )
 
         if not task:
-            return {"success": False, "error": "Task not found"}
+            return {"success": False, "error": f"Task {task_id} not found"}
 
-        return {"success": True, "task": format_task_for_response(task)}
-
+        return {"success": True, "task": task}
     except Exception as e:
         logger.error(f"Task fetch failed: {e}")
-        return {"success": False, "error": str(e)}
-
-
-@router.delete("/task/{task_id}")
-async def delete_task(task_id: str):
-    """
-    Delete a specific task from history.
-
-    Args:
-        task_id: The UUID string of the task to delete.
-
-    Returns:
-        { success: True, message: "Task deleted" } or error.
-    """
-    try:
-        collection = get_tasks_collection()
-        result = await collection.delete_one({"task_id": task_id})
-
-        if result.deleted_count == 0:
-            return {"success": False, "error": "Task not found"}
-
-        return {"success": True, "message": "Task deleted"}
-
-    except Exception as e:
-        logger.error(f"Task delete failed: {e}")
         return {"success": False, "error": str(e)}

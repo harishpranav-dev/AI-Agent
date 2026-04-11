@@ -1,74 +1,62 @@
 """
 module: mongo.py
-purpose: MongoDB async connection manager for AutoAgent Studio.
-         Uses Motor (async PyMongo driver) for non-blocking DB operations.
+purpose: Manages async MongoDB connection using Motor client.
+         Provides get_database() to access the 'autoagent' database.
 author: HP & Mushan
 """
 
 import os
 import logging
 from motor.motor_asyncio import AsyncIOMotorClient
-from dotenv import load_dotenv
 
-load_dotenv()
 logger = logging.getLogger(__name__)
 
-_client = None
-_db = None
+# Module-level client — created once, reused across requests
+_client: AsyncIOMotorClient | None = None
+_database = None
 
 
-async def connect_db():
+async def connect_to_mongo() -> None:
     """
-    Initialize MongoDB connection. Call on app startup.
-    
-    Creates an async Motor client and pings the server
-    to verify the connection is working.
+    Initialize the MongoDB connection.
+    Called once at app startup.
+    Reads MONGODB_URL from environment variables.
     """
-    global _client, _db
+    global _client, _database
 
-    mongodb_url = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    mongo_url = os.getenv("MONGODB_URL", "")
+    if not mongo_url:
+        logger.warning("MONGODB_URL not set — database features will be unavailable")
+        return
 
     try:
-        _client = AsyncIOMotorClient(mongodb_url)
-        _db = _client.autoagent
-
-        # Test connection — ping throws an error if MongoDB is unreachable
+        _client = AsyncIOMotorClient(mongo_url)
+        _database = _client["autoagent"]
+        # Ping to verify connection actually works
         await _client.admin.command("ping")
-        logger.info("MongoDB connected successfully")
-
+        logger.info("Connected to MongoDB Atlas successfully")
     except Exception as e:
         logger.error(f"MongoDB connection failed: {e}")
-        raise
+        _client = None
+        _database = None
 
 
-async def close_db():
-    """Close MongoDB connection. Call on app shutdown."""
-    global _client
+async def close_mongo_connection() -> None:
+    """
+    Close the MongoDB connection.
+    Called at app shutdown to free resources.
+    """
+    global _client, _database
     if _client:
         _client.close()
+        _client = None
+        _database = None
         logger.info("MongoDB connection closed")
 
 
-def get_db():
+def get_database():
     """
-    Get the database instance.
-    
-    Returns:
-        The 'autoagent' database object.
-        
-    Raises:
-        RuntimeError: If connect_db() hasn't been called yet.
+    Returns the 'autoagent' database instance.
+    Returns None if connection was never established.
     """
-    if _db is None:
-        raise RuntimeError("Database not connected. Call connect_db() first.")
-    return _db
-
-
-def get_tasks_collection():
-    """
-    Get the tasks collection from the database.
-    
-    Returns:
-        The 'tasks' collection where all completed agent runs are stored.
-    """
-    return get_db()["tasks"]
+    return _database

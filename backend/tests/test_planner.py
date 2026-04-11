@@ -1,70 +1,49 @@
 """
-Tests for PlannerAgent.
-Tests validation logic and empty goal handling.
+module: test_planner.py
+purpose: Tests for the Planner agent and plan JSON parsing.
+author: HP & Mushan
 """
 
 import pytest
-from agents.planner_agent import PlannerAgent
+from agents.orchestrator import parse_plan_json
 
 
-@pytest.mark.asyncio
-async def test_planner_rejects_empty_goal():
-    """Planner should reject empty goal without calling the API."""
-    agent = PlannerAgent()
-    result = await agent.run({"goal": ""})
+class TestParsePlanJson:
+    """Test the plan parsing utility used by the orchestrator."""
 
-    assert result["success"] is False
-    assert "error" in result
+    def test_valid_json_parses_correctly(self):
+        """Valid JSON plan should parse without errors."""
+        raw = '{"goal_summary": "test", "subtasks": ["a", "b"], "complexity": "simple"}'
+        result = parse_plan_json(raw)
+        assert result["goal_summary"] == "test"
+        assert len(result["subtasks"]) == 2
 
+    def test_json_wrapped_in_code_block(self):
+        """JSON wrapped in ```json ... ``` should still parse."""
+        raw = '```json\n{"goal_summary": "test", "subtasks": ["a"], "complexity": "simple"}\n```'
+        result = parse_plan_json(raw)
+        assert result["subtasks"] == ["a"]
 
-@pytest.mark.asyncio
-async def test_planner_rejects_whitespace_goal():
-    """Planner should reject whitespace-only goal."""
-    agent = PlannerAgent()
-    result = await agent.run({"goal": "   "})
+    def test_missing_subtasks_raises_error(self):
+        """Plan without subtasks list should raise ValueError."""
+        raw = '{"goal_summary": "test", "complexity": "simple"}'
+        with pytest.raises(ValueError, match="missing 'subtasks'"):
+            parse_plan_json(raw)
 
-    assert result["success"] is False
-    assert "error" in result
+    def test_empty_subtasks_raises_error(self):
+        """Plan with empty subtasks list should raise ValueError."""
+        raw = '{"goal_summary": "test", "subtasks": [], "complexity": "simple"}'
+        with pytest.raises(ValueError, match="zero subtasks"):
+            parse_plan_json(raw)
 
+    def test_invalid_json_raises_error(self):
+        """Completely invalid JSON should raise ValueError."""
+        raw = "This is not JSON at all"
+        with pytest.raises(ValueError, match="invalid JSON"):
+            parse_plan_json(raw)
 
-def test_planner_validate_plan_valid():
-    """Validation should pass for a correctly structured plan."""
-    agent = PlannerAgent()
-    valid_plan = {
-        "goal_summary": "Test goal",
-        "subtasks": ["task 1", "task 2", "task 3"],
-        "complexity": "moderate"
-    }
-    assert agent._validate_plan(valid_plan) is True
-
-
-def test_planner_validate_plan_missing_key():
-    """Validation should fail when a required key is missing."""
-    agent = PlannerAgent()
-    bad_plan = {"goal_summary": "Test", "subtasks": ["a"]}
-    with pytest.raises(ValueError, match="missing required key"):
-        agent._validate_plan(bad_plan)
-
-
-def test_planner_validate_plan_too_many_subtasks():
-    """Validation should fail when more than 5 subtasks are provided."""
-    agent = PlannerAgent()
-    bad_plan = {
-        "goal_summary": "Test",
-        "subtasks": ["a", "b", "c", "d", "e", "f"],
-        "complexity": "complex"
-    }
-    with pytest.raises(ValueError, match="too many subtasks"):
-        agent._validate_plan(bad_plan)
-
-
-def test_planner_validate_plan_invalid_complexity():
-    """Validation should fail for invalid complexity value."""
-    agent = PlannerAgent()
-    bad_plan = {
-        "goal_summary": "Test",
-        "subtasks": ["a"],
-        "complexity": "extreme"
-    }
-    with pytest.raises(ValueError, match="complexity must be one of"):
-        agent._validate_plan(bad_plan)
+    def test_json_with_extra_whitespace(self):
+        """JSON with leading/trailing whitespace should parse fine."""
+        raw = '  \n  {"goal_summary": "x", "subtasks": ["a", "b", "c"], "complexity": "moderate"}  \n  '
+        result = parse_plan_json(raw)
+        assert len(result["subtasks"]) == 3

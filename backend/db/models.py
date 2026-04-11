@@ -1,33 +1,25 @@
 """
 module: models.py
-purpose: Data models and helper functions for task documents.
-         Defines the structure of task records saved to MongoDB.
+purpose: Defines the task document structure for MongoDB storage.
+         Provides helper functions to create and update task records.
 author: HP & Mushan
 """
 
-from datetime import datetime, timezone
 import uuid
+from datetime import datetime, timezone
 
 
-def create_task_document(
-    goal: str,
-    mode: str,
-    session_id: str = "default"
-) -> dict:
+def create_task_document(goal: str, mode: str, session_id: str) -> dict:
     """
-    Create a new task document ready for MongoDB insertion.
-
-    This is the blueprint for every task saved to the database.
-    It starts with status 'running' and gets updated when the
-    orchestrator completes or fails.
+    Creates a new task document with 'running' status.
 
     Args:
-        goal: User's research goal (e.g., "Research benefits of yoga")
-        mode: "multi" (3-agent pipeline) or "single" (planner + writer only)
-        session_id: Browser session identifier for grouping user history
+        goal: The user's original goal text.
+        mode: Either 'single' or 'multi' agent mode.
+        session_id: Browser session identifier for history tracking.
 
     Returns:
-        Task document dict matching the MongoDB schema.
+        A dict ready to insert into MongoDB.
     """
     return {
         "task_id": str(uuid.uuid4()),
@@ -42,27 +34,44 @@ def create_task_document(
             "total_time_seconds": 0,
             "tools_called": 0,
             "agents_used": [],
-            "steps_completed": 0,
-            "word_count": 0
+            "steps_completed": 0
         },
         "created_at": datetime.now(timezone.utc).isoformat(),
         "completed_at": None
     }
 
 
-def format_task_for_response(task: dict) -> dict:
+def mark_task_complete(task_doc: dict, report: str, metadata: dict) -> dict:
     """
-    Format a MongoDB task document for API response.
-
-    MongoDB adds an '_id' field (ObjectId type) to every document.
-    ObjectId isn't JSON-serializable, so we convert it to a string.
+    Updates a task document to 'complete' status with final results.
 
     Args:
-        task: Raw task document from MongoDB.
+        task_doc: The existing task document dict.
+        report: The final markdown report from the Writer agent.
+        metadata: Performance stats (time, tools called, etc.)
 
     Returns:
-        Same dict with _id converted to string.
+        The updated task document.
     """
-    if task and "_id" in task:
-        task["_id"] = str(task["_id"])
-    return task
+    task_doc["status"] = "complete"
+    task_doc["report"] = report
+    task_doc["metadata"] = metadata
+    task_doc["completed_at"] = datetime.now(timezone.utc).isoformat()
+    return task_doc
+
+
+def mark_task_failed(task_doc: dict, error_message: str) -> dict:
+    """
+    Updates a task document to 'failed' status with error info.
+
+    Args:
+        task_doc: The existing task document dict.
+        error_message: Description of what went wrong.
+
+    Returns:
+        The updated task document.
+    """
+    task_doc["status"] = "failed"
+    task_doc["metadata"]["error"] = error_message
+    task_doc["completed_at"] = datetime.now(timezone.utc).isoformat()
+    return task_doc

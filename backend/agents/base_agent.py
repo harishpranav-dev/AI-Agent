@@ -1,156 +1,162 @@
 """
 module: base_agent.py
-purpose: Base class that all AutoAgent Studio agents inherit from.
-         Handles Claude API communication, tool execution loop, and logging.
+purpose: Base class that all agents (Planner, Researcher, Writer) inherit.
+         Handles the core loop: call Claude → handle tool use → return result.
 author: HP & Mushan
 """
 
-import anthropic
 import os
+import json
 import logging
-from typing import Optional
-from dotenv import load_dotenv
-
-load_dotenv()
+from typing import Callable, Optional
+from anthropic import AsyncAnthropic
 
 logger = logging.getLogger(__name__)
 
 
 class BaseAgent:
     """
-    Base agent class. All agents (Planner, Researcher, Writer) inherit this.
-    Handles the core Claude API loop including tool use.
-    
-    Think of this like a 'template employee' — it knows how to communicate
-    with Claude (the brain), but doesn't have a specific job yet.
-    Subclasses give it a job by overriding run().
+    Base class for all AI agents in AutoAgent Studio.
+
+    Every agent follows the same pattern:
+    1. Receive input
+    2. Call Claude API with a system prompt and optional tools
+    3. If Claude wants to use a tool, execute it and continue
+    4. Return the final text response
+
+    Subclasses set their own system_prompt and tools.
     """
 
     def __init__(
         self,
         name: str,
         system_prompt: str,
-        tools: Optional[list] = None,
+        tools: list = None,
         model: str = "claude-sonnet-4-20250514"
     ):
         """
-        Initialize the base agent.
+        Initialize a new agent.
 
         Args:
-            name: Agent display name (e.g. "Planner Agent")
-            system_prompt: Instructions that define the agent's role
-            tools: List of tool definitions this agent can use
-            model: Claude model to use
+            name: Human-readable name like 'Planner', 'Researcher'.
+            system_prompt: Instructions that define this agent's behavior.
+            tools: List of tool definitions this agent can use (Claude format).
+            model: Which Claude model to use.
         """
         self.name = name
         self.system_prompt = system_prompt
         self.tools = tools or []
         self.model = model
-        self.client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-        logger.info(f"Agent initialized: {self.name}")
+        self.client = AsyncAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
 
-    async def call_claude(self, messages: list, max_tokens: int = 2000) -> str:
+    async def run(
+        self,
+        user_message: str,
+        tool_executor: Optional[Callable] = None,
+        event_callback: Optional[Callable] = None
+    ) -> str:
         """
-        Make a call to Claude API. Handles tool use loop automatically.
+        Run this agent on a user message.
 
-        How it works:
-        1. Sends your messages + system prompt to Claude
-        2. If Claude wants to use a tool, it executes the tool and continues
-        3. Keeps looping until Claude gives a final text response
+        This is the core agentic loop:
+        - Send message to Claude
+        - If Claude wants to use a tool, call tool_executor and send result back
+        - Keep looping until Claude gives a final text response
 
         Args:
-            messages: List of message dicts with role and content
-            max_tokens: Maximum tokens in response
+            user_message: The input prompt for this agent.
+            tool_executor: Async function that executes tools by name.
+                           Signature: async (name: str, input: dict) -> str
+            event_callback: Optional async function to emit progress events.
+                           Signature: async (event_type: str, data: dict) -> None
 
         Returns:
-            Final text response from Claude
+            Claude's final text response as a string.
         """
-        logger.info(f"{self.name}: Calling Claude API")
+        messages = [{"role": "user", "content": user_message}]
+        tools_called_count = 0
 
-        kwargs = {
-            "model": self.model,
-            "max_tokens": max_tokens,
-            "system": self.system_prompt,
-            "messages": messages
-        }
+        # Maximum tool-use iterations to prevent infinite loops
+        max_iterations = 10
 
-        if self.tools:
-            kwargs["tools"] = self.tools
+        for iteration in range(max_iterations):
+            try:
+                # Build API call kwargs
+                api_kwargs = {
+                    "model": self.model,
+                    "max_tokens": 4096,
+                    "system": self.system_prompt,
+                    "messages": messages
+                }
 
-        try:
-            response = self.client.messages.create(**kwargs)
+                # Only include tools if this agent has them
+                if self.tools:
+                    api_kwargs["tools"] = self.tools
 
-            # Tool use loop: if Claude wants to call a tool, execute it
-            # and send the result back, repeating until Claude gives text
-            while response.stop_reason == "tool_use":
-                tool_block = next(
-                    b for b in response.content if b.type == "tool_use"
-                )
+                response = await self.client.messages.create(**api_kwargs)
 
-                logger.info(
-                    f"{self.name}: Using tool '{tool_block.name}' "
-                    f"with input: {tool_block.input}"
-                )
+            except Exception as e:
+                logger.error(f"[{self.name}] Claude API call failed: {e}")
+                raise
 
-                tool_result = await self.execute_tool(
-                    tool_block.name, tool_block.input
-                )
+            # Check if Claude wants to use a tool
+            if response.stop_reason == "tool_use":
+                # Find the tool_use block in the response
+                tool_use_block = None
+                text_content = ""
 
-                # Append assistant response + tool result to messages
-                messages = messages + [
-                    {"role": "assistant", "content": response.content},
-                    {
+                for block in response.content:
+                    if block.type == "tool_use":
+                        tool_use_block = block
+                    elif block.type == "text":
+                        text_content = block.text
+
+                if tool_use_block and tool_executor:
+                    tool_name = tool_use_block.name
+                    tool_input = tool_use_block.input
+
+                    logger.info(f"[{self.name}] Calling tool: {tool_name}")
+
+                    # Emit tool call event if callback provided
+                    if event_callback:
+                        await event_callback(
+                            f"{self.name.lower()}_tool_call",
+                            {"tool": tool_name, "input": tool_input}
+                        )
+
+                    # Execute the tool
+                    tool_result = await tool_executor(tool_name, tool_input)
+                    tools_called_count += 1
+
+                    # Add Claude's response and tool result to conversation
+                    messages.append({"role": "assistant", "content": response.content})
+                    messages.append({
                         "role": "user",
                         "content": [{
                             "type": "tool_result",
-                            "tool_use_id": tool_block.id,
-                            "content": str(tool_result)
+                            "tool_use_id": tool_use_block.id,
+                            "content": tool_result
                         }]
-                    }
-                ]
+                    })
 
-                response = self.client.messages.create(
-                    **kwargs | {"messages": messages}
-                )
+                    # Continue the loop — Claude will process the tool result
+                    continue
+                else:
+                    logger.warning(f"[{self.name}] Tool use requested but no executor available")
+                    break
 
-            # Extract final text from response
-            final_text = next(
-                (b.text for b in response.content if hasattr(b, "text")),
-                ""
+            # Claude gave a final response (stop_reason == "end_turn")
+            final_text = ""
+            for block in response.content:
+                if block.type == "text":
+                    final_text += block.text
+
+            logger.info(
+                f"[{self.name}] Completed — {tools_called_count} tool(s) called, "
+                f"{len(final_text)} chars output"
             )
-            logger.info(f"{self.name}: Completed successfully")
             return final_text
 
-        except anthropic.APIError as e:
-            logger.error(f"{self.name}: Claude API error: {e}")
-            raise
-        except Exception as e:
-            logger.error(f"{self.name}: Unexpected error: {e}", exc_info=True)
-            raise
-
-    async def execute_tool(self, tool_name: str, tool_input: dict) -> str:
-        """
-        Override this in subclasses to handle specific tools.
-        Base version returns a 'not implemented' message.
-
-        Args:
-            tool_name: Name of the tool to execute
-            tool_input: Input parameters for the tool
-
-        Returns:
-            Tool result as string
-        """
-        return f"Tool '{tool_name}' not implemented in {self.name}"
-
-    async def run(self, input_data: dict) -> dict:
-        """
-        Main entry point for running the agent.
-        Every subclass MUST override this with its own logic.
-
-        Args:
-            input_data: Dict containing agent inputs
-
-        Returns:
-            Dict containing agent outputs
-        """
-        raise NotImplementedError(f"{self.name} must implement run()")
+        # If we exhausted iterations, return whatever we have
+        logger.warning(f"[{self.name}] Hit max iterations ({max_iterations})")
+        return "Agent reached maximum tool-use iterations. Partial result may be incomplete."

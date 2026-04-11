@@ -1,300 +1,292 @@
 """
 module: orchestrator.py
-purpose: Orchestrator manages the full multi-agent pipeline.
-         Coordinates: Planner → Researcher (per subtask) → Writer.
-         Emits progress events and manages task memory.
-         This is the "project manager" — it coordinates but never thinks.
+purpose: Manages the agent pipeline — coordinates Planner, Researcher,
+         and Writer agents in sequence. Supports both 'multi' and 'single' modes.
+         
+         PHASE 9 UPDATE: Single-agent mode now fully implemented.
+         - multi mode: Planner → Researcher (per subtask) → Writer
+         - single mode: Planner → Writer (skips research, uses LLM knowledge only)
+         
 author: HP & Mushan
 """
 
-import uuid
+import json
+import time
 import asyncio
 import logging
-from datetime import datetime, timezone
-from typing import Optional, Callable
+from typing import Callable, Optional
 
 from agents.planner_agent import PlannerAgent
 from agents.researcher_agent import ResearcherAgent
 from agents.writer_agent import WriterAgent
-from db.mongo import get_tasks_collection
+from db.mongo import get_database
+from db.models import create_task_document, mark_task_complete, mark_task_failed
 
 logger = logging.getLogger(__name__)
+
+# Retry settings for agent calls
+MAX_RETRIES = 2
+RETRY_DELAY_SECONDS = 2
+
+
+async def run_with_retry(agent_callable, *args, **kwargs):
+    """
+    Run an agent method with automatic retry on failure.
+    
+    Retries are important because API calls can fail due to
+    rate limits, network hiccups, or transient errors.
+    Retrying once or twice often resolves these.
+
+    Args:
+        agent_callable: The async agent method to call.
+        *args, **kwargs: Arguments to pass to the method.
+
+    Returns:
+        The agent's return value.
+
+    Raises:
+        The last exception if all retries are exhausted.
+    """
+    for attempt in range(MAX_RETRIES):
+        try:
+            return await agent_callable(*args, **kwargs)
+        except Exception as e:
+            if attempt == MAX_RETRIES - 1:
+                logger.error(f"Agent call failed after {MAX_RETRIES} attempts: {e}")
+                raise
+            logger.warning(f"Agent call failed (attempt {attempt + 1}), retrying: {e}")
+            await asyncio.sleep(RETRY_DELAY_SECONDS)
+
+
+def parse_plan_json(raw_plan: str) -> dict:
+    """
+    Parse the planner's JSON output, handling cases where Claude
+    wraps JSON in markdown code blocks.
+
+    Args:
+        raw_plan: The raw string output from the Planner agent.
+
+    Returns:
+        Parsed dict with goal_summary, subtasks, and complexity.
+
+    Raises:
+        ValueError: If the output cannot be parsed as valid JSON.
+    """
+    cleaned = raw_plan.strip()
+
+    # Strip markdown code block wrappers if present
+    if cleaned.startswith("```json"):
+        cleaned = cleaned[7:]
+    if cleaned.startswith("```"):
+        cleaned = cleaned[3:]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+    cleaned = cleaned.strip()
+
+    try:
+        plan = json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to parse planner output as JSON: {e}")
+        logger.error(f"Raw output: {raw_plan[:300]}")
+        raise ValueError(f"Planner returned invalid JSON: {e}")
+
+    # Validate required fields
+    if "subtasks" not in plan or not isinstance(plan["subtasks"], list):
+        raise ValueError("Planner output missing 'subtasks' list")
+
+    if len(plan["subtasks"]) < 1:
+        raise ValueError("Planner produced zero subtasks")
+
+    return plan
 
 
 class Orchestrator:
     """
-    Manages the full multi-agent pipeline for AutoAgent Studio.
+    Pipeline manager for the agent system.
+    
+    No intelligence of its own — it just coordinates:
+    1. Sends goal to Planner → gets structured plan
+    2. (Multi mode) Sends each subtask to Researcher → collects findings
+    3. Sends findings to Writer → gets final report
+    4. Saves everything to MongoDB
+    5. Emits WebSocket events throughout
 
-    Pipeline flow:
-        1. Planner Agent → breaks goal into subtasks
-        2. Researcher Agent → researches each subtask (with web search)
-        3. Writer Agent → produces final markdown report
-
-    The Orchestrator itself has NO intelligence — it only:
-        - Calls agents in order
-        - Passes outputs between them
-        - Tracks progress via events
-        - Handles errors gracefully
+    In SINGLE mode, step 2 is skipped — the Writer works from
+    the plan alone, using only Claude's built-in knowledge.
+    This demonstrates the difference between single-step (less accurate,
+    faster) and multi-step (more accurate, slower with real data).
     """
 
-    def __init__(self, event_callback: Optional[Callable] = None):
-        """
-        Initialize the Orchestrator with all three agents.
-
-        Args:
-            event_callback: Optional async function called with progress events.
-                           Signature: async def callback(event_type: str, data: dict)
-                           Used later for WebSocket streaming to the frontend.
-        """
+    def __init__(self):
+        """Initialize all three agents."""
         self.planner = PlannerAgent()
         self.researcher = ResearcherAgent()
         self.writer = WriterAgent()
-        self.event_callback = event_callback
 
-    async def emit(self, event_type: str, data: dict) -> None:
+    async def run(
+        self,
+        goal: str,
+        mode: str = "multi",
+        session_id: str = "default",
+        event_callback: Optional[Callable] = None
+    ) -> dict:
         """
-        Emit a progress event to the console and optional callback.
-
-        Events let the frontend (and logs) know what's happening
-        at each step of the pipeline. Example event types:
-        "planner_thinking", "researcher_complete", "task_error", etc.
+        Execute the full agent pipeline.
 
         Args:
-            event_type: Name of the event (e.g., "planner_complete")
-            data: Dict of event-specific data to send
-        """
-        event = {
-            "event": event_type,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "data": data
-        }
-        logger.info(f"Event: {event_type} — {str(data)[:100]}")
-
-        if self.event_callback:
-            await self.event_callback(event_type, data)
-
-    async def run(self, goal: str, mode: str = "multi") -> dict:
-        """
-        Run the full agent pipeline.
-
-        This is the main entry point. It:
-        1. Creates a unique task ID and memory object
-        2. Runs the Planner to get subtasks
-        3. Runs the Researcher on each subtask (multi mode only)
-        4. Runs the Writer to produce the final report
-        5. Saves the completed task to MongoDB
-        6. Returns the complete result with stats
-
-        Args:
-            goal: User's research goal (e.g., "Research benefits of meditation")
-            mode: "multi" for full 3-agent pipeline,
-                  "single" for Planner + Writer only (skips research)
+            goal: The user's raw goal string.
+            mode: 'multi' (Planner+Researcher+Writer) or
+                  'single' (Planner+Writer only).
+            session_id: Browser session ID for history tracking.
+            event_callback: Async function to emit WebSocket events.
 
         Returns:
-            {
-              "success": True/False,
-              "task_id": str,
-              "goal": str,
-              "plan": dict,
-              "report": str,
-              "stats": dict
-            }
+            Dict with task_id, report, and metadata.
         """
-        task_id = str(uuid.uuid4())[:8]
-        start_time = datetime.now(timezone.utc)
+        start_time = time.time()
+        tools_called = 0
 
-        # --- Task Memory: tracks everything across the pipeline ---
-        # This dict travels through the entire pipeline, collecting
-        # outputs from each agent. It's the "shared clipboard" that
-        # the Orchestrator manages.
-        task_memory = {
-            "task_id": task_id,
-            "goal": goal,
-            "mode": mode,
-            "plan": None,
-            "all_findings": [],
-            "report": None,
-            "error": None,
-            "stats": {
-                "tools_called": 0,
-                "steps_completed": 0,
-                "agents_used": []
-            }
-        }
+        # Create task record in MongoDB
+        task_doc = create_task_document(goal, mode, session_id)
+        task_id = task_doc["task_id"]
+        database = get_database()
 
-        logger.info(f"Orchestrator: Starting task {task_id} — '{goal[:50]}'")
+        if database:
+            try:
+                await database.tasks.insert_one(task_doc)
+            except Exception as e:
+                logger.error(f"Failed to save initial task to MongoDB: {e}")
 
-        await self.emit("task_started", {
-            "task_id": task_id,
-            "goal": goal,
-            "mode": mode
-        })
+        # Emit: task started
+        if event_callback:
+            await event_callback("task_started", {
+                "task_id": task_id,
+                "goal": goal,
+                "mode": mode
+            })
 
         try:
-            # ========================================
-            # STEP 1: PLANNER AGENT
-            # ========================================
-            await self.emit("planner_thinking", {
-                "message": "Breaking down your goal into subtasks..."
-            })
+            # ── STEP 1: PLANNER ──────────────────────────────
+            logger.info(f"[Orchestrator] Starting Planner for: {goal[:50]}...")
+            raw_plan = await run_with_retry(
+                self.planner.create_plan,
+                goal=goal,
+                event_callback=event_callback
+            )
+            plan = parse_plan_json(raw_plan)
+            task_doc["plan"] = plan
 
-            planner_result = await self.planner.run({"goal": goal})
+            agents_used = ["planner"]
 
-            if not planner_result["success"]:
-                raise Exception(
-                    f"Planner failed: {planner_result.get('error')}"
-                )
+            # ── STEP 2: RESEARCHER (multi mode only) ─────────
+            all_findings = []
 
-            task_memory["plan"] = planner_result["plan"]
-            task_memory["stats"]["steps_completed"] += 1
-            task_memory["stats"]["agents_used"].append("planner")
-
-            await self.emit("planner_complete", {
-                "plan": planner_result["plan"],
-                "subtask_count": len(planner_result["plan"]["subtasks"])
-            })
-
-            # ========================================
-            # STEP 2: RESEARCHER AGENT (per subtask)
-            # Skip this step in "single" mode
-            # ========================================
             if mode == "multi":
-                subtasks = planner_result["plan"]["subtasks"]
+                logger.info(f"[Orchestrator] Multi mode — researching {len(plan['subtasks'])} subtasks")
+                agents_used.append("researcher")
 
-                for i, subtask in enumerate(subtasks):
-                    await self.emit("researcher_thinking", {
-                        "subtask": subtask,
-                        "progress": f"{i + 1}/{len(subtasks)}"
+                for subtask in plan["subtasks"]:
+                    finding = await run_with_retry(
+                        self.researcher.research_subtask,
+                        subtask=subtask,
+                        goal_context=goal,
+                        event_callback=event_callback
+                    )
+                    all_findings.append(finding)
+                    tools_called += 1  # At minimum, each subtask calls web_search once
+
+                task_doc["research"] = [
+                    {"subtask": s, "findings": f[:200]}
+                    for s, f in zip(plan["subtasks"], all_findings)
+                ]
+            else:
+                # Single mode — no research, Writer uses LLM knowledge only
+                logger.info("[Orchestrator] Single mode — skipping Researcher")
+                if event_callback:
+                    await event_callback("researcher_skipped", {
+                        "reason": "Single-agent mode — using AI knowledge only"
                     })
+                # Pass the subtasks as pseudo-findings so Writer has structure
+                all_findings = [
+                    f"Subtask to address (no web research — use your knowledge): {subtask}"
+                    for subtask in plan["subtasks"]
+                ]
 
-                    research_result = await self.researcher.run({
-                        "subtask": subtask,
-                        "goal_context": goal
-                    })
+            # ── STEP 3: WRITER ───────────────────────────────
+            logger.info("[Orchestrator] Starting Writer agent")
+            agents_used.append("writer")
 
-                    if research_result["success"]:
-                        task_memory["all_findings"].append(research_result)
-                        task_memory["stats"]["tools_called"] += 1
+            report = await run_with_retry(
+                self.writer.write_report,
+                goal=goal,
+                all_findings=all_findings,
+                event_callback=event_callback
+            )
 
-                    task_memory["stats"]["steps_completed"] += 1
-
-                    await self.emit("researcher_complete", {
-                        "subtask": subtask,
-                        "findings_count": len(
-                            research_result.get("findings", {})
-                            .get("key_findings", [])
-                        )
-                    })
-
-                    # Brief pause between subtask research calls
-                    # Avoids hitting API rate limits too fast
-                    await asyncio.sleep(0.5)
-
-                task_memory["stats"]["agents_used"].append("researcher")
-
-            # ========================================
-            # STEP 3: WRITER AGENT
-            # ========================================
-            await self.emit("writer_thinking", {
-                "message": "Writing your report..."
-            })
-
-            # In single mode, the Writer gets a minimal finding
-            # since the Researcher was skipped entirely
-            writer_findings = task_memory["all_findings"]
-            if mode == "single":
-                writer_findings = [{
-                    "success": True,
-                    "findings": {
-                        "subtask": "Direct analysis",
-                        "key_findings": [
-                            f"Single-agent mode: direct analysis of '{goal}'"
-                        ],
-                        "statistics": [],
-                        "sources": []
-                    }
-                }]
-
-            writer_result = await self.writer.run({
-                "goal": goal,
-                "all_findings": writer_findings
-            })
-
-            if not writer_result["success"]:
-                raise Exception(
-                    f"Writer failed: {writer_result.get('error')}"
-                )
-
-            task_memory["report"] = writer_result["report"]
-            task_memory["stats"]["steps_completed"] += 1
-            task_memory["stats"]["agents_used"].append("writer")
-
-            # ========================================
-            # STEP 4: CALCULATE STATS AND RETURN
-            # ========================================
-            end_time = datetime.now(timezone.utc)
-            duration = (end_time - start_time).seconds
-            task_memory["stats"]["total_seconds"] = duration
-
-            await self.emit("task_complete", {
-                "task_id": task_id,
-                "report": writer_result["report"],
-                "word_count": writer_result["word_count"],
-                "duration_seconds": duration,
-                "stats": task_memory["stats"]
-            })
-
-            # --- Save completed task to MongoDB ---
-            try:
-                collection = get_tasks_collection()
-                doc = {
-                    "task_id": task_id,
-                    "session_id": "default",
-                    "goal": goal,
-                    "mode": mode,
-                    "status": "complete",
-                    "plan": task_memory["plan"],
-                    "research": [
-                        f.get("findings", {})
-                        for f in task_memory["all_findings"]
-                    ],
-                    "report": task_memory["report"],
-                    "metadata": {
-                        "total_time_seconds": duration,
-                        "tools_called": task_memory["stats"]["tools_called"],
-                        "agents_used": task_memory["stats"]["agents_used"],
-                        "steps_completed": task_memory["stats"]["steps_completed"],
-                        "word_count": writer_result.get("word_count", 0)
-                    },
-                    "created_at": start_time.isoformat(),
-                    "completed_at": end_time.isoformat()
-                }
-                await collection.insert_one(doc)
-                logger.info(f"Task {task_id} saved to MongoDB")
-            except Exception as e:
-                logger.warning(f"Failed to save task to MongoDB: {e}")
-
-            return {
-                "success": True,
-                "task_id": task_id,
-                "goal": goal,
-                "plan": task_memory["plan"],
-                "report": task_memory["report"],
-                "stats": task_memory["stats"]
+            # ── STEP 4: SAVE RESULT ─────────────────────────
+            elapsed = round(time.time() - start_time, 2)
+            metadata = {
+                "total_time_seconds": elapsed,
+                "tools_called": tools_called,
+                "agents_used": agents_used,
+                "steps_completed": len(plan["subtasks"]) + 2  # plan + research steps + write
             }
 
-        except Exception as e:
-            logger.error(
-                f"Orchestrator: Task {task_id} failed: {e}",
-                exc_info=True
-            )
-            await self.emit("task_error", {
-                "error": str(e),
-                "task_id": task_id
-            })
-            return {
-                "success": False,
+            mark_task_complete(task_doc, report, metadata)
+
+            if database:
+                try:
+                    await database.tasks.update_one(
+                        {"task_id": task_id},
+                        {"$set": task_doc}
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to update task in MongoDB: {e}")
+
+            # ── STEP 5: EMIT COMPLETION ──────────────────────
+            result = {
                 "task_id": task_id,
-                "error": str(e),
-                "partial_data": task_memory
+                "goal": goal,
+                "mode": mode,
+                "report": report,
+                "plan": plan,
+                "metadata": metadata
+            }
+
+            if event_callback:
+                await event_callback("task_complete", result)
+
+            logger.info(f"[Orchestrator] Task complete in {elapsed}s — {mode} mode")
+            return result
+
+        except Exception as e:
+            # ── ERROR HANDLING ───────────────────────────────
+            elapsed = round(time.time() - start_time, 2)
+            error_msg = str(e)
+            logger.error(f"[Orchestrator] Task failed after {elapsed}s: {error_msg}")
+
+            mark_task_failed(task_doc, error_msg)
+
+            if database:
+                try:
+                    await database.tasks.update_one(
+                        {"task_id": task_id},
+                        {"$set": task_doc}
+                    )
+                except Exception:
+                    pass  # Don't let DB error mask the real error
+
+            if event_callback:
+                await event_callback("task_error", {
+                    "task_id": task_id,
+                    "error": error_msg
+                })
+
+            return {
+                "task_id": task_id,
+                "goal": goal,
+                "mode": mode,
+                "report": None,
+                "error": error_msg,
+                "metadata": {"total_time_seconds": elapsed}
             }
