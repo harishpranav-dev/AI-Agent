@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from agents.test_agent import TestAgent
 from agents.planner_agent import PlannerAgent
+from agents.researcher_agent import ResearcherAgent
 
 router = APIRouter(prefix="/api", tags=["agents"])
 
@@ -16,6 +17,12 @@ router = APIRouter(prefix="/api", tags=["agents"])
 class GoalRequest(BaseModel):
     """Request body for any agent that takes a goal string."""
     goal: str
+
+
+class ResearchRequest(BaseModel):
+    """Request body for the Researcher Agent."""
+    subtask: str
+    goal_context: str = ""
 
 
 @router.post("/test-agent")
@@ -38,6 +45,23 @@ async def run_planner(request: GoalRequest):
     try:
         planner = PlannerAgent()
         result = await planner.run({"goal": request.goal})
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+
+@router.post("/researcher")
+async def run_researcher(request: ResearchRequest):
+    """
+    Run the Researcher Agent on a specific subtask.
+    Uses web search to find real information from the internet.
+    """
+    try:
+        researcher = ResearcherAgent()
+        result = await researcher.run({
+            "subtask": request.subtask,
+            "goal_context": request.goal_context
+        })
         return result
     except Exception as e:
         return {"success": False, "error": str(e)}
