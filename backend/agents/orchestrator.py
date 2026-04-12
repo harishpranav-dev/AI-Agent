@@ -151,7 +151,7 @@ class Orchestrator:
         task_id = task_doc["task_id"]
         database = get_database()
 
-        if database:
+        if database is not None:
             try:
                 await database.tasks.insert_one(task_doc)
             except Exception as e:
@@ -234,7 +234,7 @@ class Orchestrator:
 
             mark_task_complete(task_doc, report, metadata)
 
-            if database:
+            if database is not None:
                 try:
                     await database.tasks.update_one(
                         {"task_id": task_id},
@@ -267,7 +267,7 @@ class Orchestrator:
 
             mark_task_failed(task_doc, error_msg)
 
-            if database:
+            if database is not None:
                 try:
                     await database.tasks.update_one(
                         {"task_id": task_id},

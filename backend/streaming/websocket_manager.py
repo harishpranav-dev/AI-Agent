@@ -63,7 +63,7 @@ class WebSocketManager:
             return
 
         message = {
-            "type": event_type,
+            "event": event_type,
             "data": data or {}
         }
 

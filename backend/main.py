@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from routes.export_routes import router as export_router
 
 from db.mongo import connect_to_mongo, close_mongo_connection
 from routes.agent_routes import router as agent_router
@@ -140,6 +141,7 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.include_router(agent_router)
 app.include_router(history_router)
+app.include_router(export_router)
 
 
 # ── BASIC ENDPOINTS ───────────────────────────────────────────

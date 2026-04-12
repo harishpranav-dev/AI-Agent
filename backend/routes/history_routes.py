@@ -27,7 +27,7 @@ async def get_session_history(session_id: str):
         List of task documents for that session.
     """
     database = get_database()
-    if not database:
+    if database is None:
         return {"success": False, "error": "Database not available", "tasks": []}
 
     try:
@@ -56,7 +56,7 @@ async def get_task_by_id(task_id: str):
         The full task document.
     """
     database = get_database()
-    if not database:
+    if database is None:
         return {"success": False, "error": "Database not available"}
 
     try:
