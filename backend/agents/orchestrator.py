@@ -7,7 +7,7 @@ purpose: Manages the agent pipeline — coordinates Planner, Researcher,
          - multi mode: Planner → Researcher (per subtask) → Writer
          - single mode: Planner → Writer (skips research, uses LLM knowledge only)
          
-author: HP & Mushan
+author: HP
 """
 
 import json
@@ -128,7 +128,8 @@ class Orchestrator:
         goal: str,
         mode: str = "multi",
         session_id: str = "default",
-        event_callback: Optional[Callable] = None
+        event_callback: Optional[Callable] = None,
+        custom_prompts: dict = None
     ) -> dict:
         """
         Execute the full agent pipeline.
@@ -149,6 +150,17 @@ class Orchestrator:
         # Create task record in MongoDB
         task_doc = create_task_document(goal, mode, session_id)
         task_id = task_doc["task_id"]
+        # Apply custom system prompts if provided by the user
+        if custom_prompts:
+            if custom_prompts.get("planner"):
+                self.planner.system_prompt = custom_prompts["planner"]
+                logger.info("[Orchestrator] Using custom Planner prompt")
+            if custom_prompts.get("researcher"):
+                self.researcher.system_prompt = custom_prompts["researcher"]
+                logger.info("[Orchestrator] Using custom Researcher prompt")
+            if custom_prompts.get("writer"):
+                self.writer.system_prompt = custom_prompts["writer"]
+                logger.info("[Orchestrator] Using custom Writer prompt")
         database = get_database()
 
         if database is not None:
@@ -175,7 +187,12 @@ class Orchestrator:
             )
             plan = parse_plan_json(raw_plan)
             task_doc["plan"] = plan
-
+            
+            # Emit planner done with actual subtask count
+            if event_callback:
+                await event_callback("planner_complete", {
+                    "subtask_count": len(plan["subtasks"])
+                })
             agents_used = ["planner"]
 
             # ── STEP 2: RESEARCHER (multi mode only) ─────────
@@ -185,18 +202,19 @@ class Orchestrator:
                 logger.info(f"[Orchestrator] Multi mode — researching {len(plan['subtasks'])} subtasks")
                 agents_used.append("researcher")
 
-                for subtask in plan["subtasks"]:
+                for i, subtask in enumerate(plan["subtasks"]):
+                    logger.info(f"[Orchestrator] Researching subtask {i+1}/{len(plan['subtasks'])}: {str(subtask)[:50]}")
                     finding = await run_with_retry(
                         self.researcher.research_subtask,
-                        subtask=subtask,
-                        goal_context=goal,
+                        subtask=str(subtask),
+                        goal_context=str(goal),
                         event_callback=event_callback
                     )
-                    all_findings.append(finding)
-                    tools_called += 1  # At minimum, each subtask calls web_search once
+                    all_findings.append(str(finding))
+                    tools_called += 1
 
                 task_doc["research"] = [
-                    {"subtask": s, "findings": f[:200]}
+                    {"subtask": s, "findings": str(f)[:200]}
                     for s, f in zip(plan["subtasks"], all_findings)
                 ]
             else:

@@ -10,6 +10,7 @@
 import { useState, useEffect } from "react";
 import { getSessionId } from "../utils/session";
 import axios from "axios";
+import StatsDashboard from "../components/StatsDashboard";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -165,6 +166,9 @@ export default function History() {
           margin: "0 auto",
         }}
       >
+        {/* ── Performance Stats ── */}
+        <StatsDashboard />
+
         {/* ── Page Header ── */}
         <div className="fade-up" style={{ marginBottom: "24px" }}>
           <h1
@@ -553,7 +557,11 @@ export default function History() {
                               >
                                 {i + 1}.
                               </span>
-                              {subtask}
+                              {typeof subtask === "string"
+                                ? subtask
+                                : subtask.title ||
+                                  subtask.description ||
+                                  JSON.stringify(subtask)}
                             </div>
                           ))}
                         </div>

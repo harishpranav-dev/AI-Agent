@@ -65,8 +65,7 @@ class PlannerAgent(BaseAgent):
             event_callback=event_callback
         )
 
-        if event_callback:
-            await event_callback("planner_complete", {"raw_output": result[:200]})
+        # planner_complete event is emitted by orchestrator after JSON parsing
 
         logger.info(f"[Planner] Plan created for goal: {goal[:50]}...")
         return result

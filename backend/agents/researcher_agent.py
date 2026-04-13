@@ -84,7 +84,8 @@ class ResearcherAgent(BaseAgent):
         if event_callback:
             await event_callback("researcher_complete", {
                 "subtask": subtask,
-                "result_preview": result[:200]
+                "result_preview": result[:200],
+                "findings_count": result.count("finding") or 1
             })
 
         logger.info(f"[Researcher] Completed subtask: {subtask[:50]}...")

@@ -69,7 +69,7 @@ export function useAgent() {
    * 3. Updates state as WebSocket events arrive
    */
   const run = useCallback(
-    async (goal, mode) => {
+    async (goal, mode, customPrompts = {}) => {
       // Reset everything for a fresh run
       setStatus("running");
       setLogs([]);
@@ -174,7 +174,7 @@ export function useAgent() {
 
       // Now fire the HTTP request that triggers the backend pipeline
       try {
-        await runAgents(goal, mode, clientId.current);
+        await runAgents(goal, mode, clientId.current, customPrompts);
       } catch (err) {
         setStatus("error");
         addLog("system", `Failed: ${err.message}`, "rose");

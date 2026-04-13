@@ -22,6 +22,11 @@ import TaskResult from "../components/TaskResult";
  */
 export default function MultiAgent() {
   const [goal, setGoal] = useState("");
+  const [customPrompts, setCustomPrompts] = useState({
+    planner: "",
+    researcher: "",
+    writer: "",
+  });
   const { status, agentStates, logs, result, stats, elapsed, run, reset } =
     useAgent();
 
@@ -33,7 +38,7 @@ export default function MultiAgent() {
   /** Fires the multi-agent pipeline */
   const handleRun = () => {
     if (!canRun) return;
-    run(goal, "multi");
+    run(goal, "multi", customPrompts);
   };
 
   /** Resets everything for a new run */
@@ -203,6 +208,173 @@ export default function MultiAgent() {
               </span>
             )}
           </div>
+        </div>
+        {/* ── Agent Customization Panel ── */}
+        <div className="rise-d1" style={{ marginBottom: "20px" }}>
+          <details
+            style={{
+              background: "var(--bg-raised)",
+              border: "1px solid var(--border-1)",
+              borderRadius: "var(--r-lg)",
+              padding: "16px 20px",
+            }}
+          >
+            <summary
+              style={{
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "var(--text-1)",
+                cursor: "pointer",
+                listStyle: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>⚙️ Customize Agent Prompts</span>
+              <span
+                style={{
+                  color: "var(--text-4)",
+                  fontSize: "11px",
+                  fontWeight: 500,
+                }}
+              >
+                Advanced
+              </span>
+            </summary>
+
+            <p
+              style={{
+                fontSize: "12px",
+                color: "var(--text-3)",
+                marginTop: "12px",
+                marginBottom: "16px",
+                lineHeight: 1.5,
+              }}
+            >
+              Override agent system prompts below. Leave empty to use defaults.
+            </p>
+
+            {/* Planner prompt */}
+            <div style={{ marginBottom: "14px" }}>
+              <p
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "#a78bfa",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: "6px",
+                }}
+              >
+                Planner Agent
+              </p>
+              <textarea
+                value={customPrompts.planner}
+                onChange={(e) =>
+                  setCustomPrompts((p) => ({ ...p, planner: e.target.value }))
+                }
+                placeholder="Leave empty to use default prompt..."
+                disabled={isRunning}
+                style={{
+                  width: "100%",
+                  background: "var(--bg-card)",
+                  border: "1px solid var(--border-2)",
+                  borderRadius: "var(--r-sm)",
+                  padding: "10px 14px",
+                  color: "var(--text-1)",
+                  fontSize: "12px",
+                  resize: "none",
+                  outline: "none",
+                  fontFamily: "inherit",
+                  height: "64px",
+                  boxSizing: "border-box",
+                  opacity: isRunning ? 0.5 : 1,
+                }}
+              />
+            </div>
+
+            {/* Researcher prompt */}
+            <div style={{ marginBottom: "14px" }}>
+              <p
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "#34d399",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: "6px",
+                }}
+              >
+                Researcher Agent
+              </p>
+              <textarea
+                value={customPrompts.researcher}
+                onChange={(e) =>
+                  setCustomPrompts((p) => ({
+                    ...p,
+                    researcher: e.target.value,
+                  }))
+                }
+                placeholder="Leave empty to use default prompt..."
+                disabled={isRunning}
+                style={{
+                  width: "100%",
+                  background: "var(--bg-card)",
+                  border: "1px solid var(--border-2)",
+                  borderRadius: "var(--r-sm)",
+                  padding: "10px 14px",
+                  color: "var(--text-1)",
+                  fontSize: "12px",
+                  resize: "none",
+                  outline: "none",
+                  fontFamily: "inherit",
+                  height: "64px",
+                  boxSizing: "border-box",
+                  opacity: isRunning ? 0.5 : 1,
+                }}
+              />
+            </div>
+
+            {/* Writer prompt */}
+            <div>
+              <p
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "#fbbf24",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  marginBottom: "6px",
+                }}
+              >
+                Writer Agent
+              </p>
+              <textarea
+                value={customPrompts.writer}
+                onChange={(e) =>
+                  setCustomPrompts((p) => ({ ...p, writer: e.target.value }))
+                }
+                placeholder="Leave empty to use default prompt..."
+                disabled={isRunning}
+                style={{
+                  width: "100%",
+                  background: "var(--bg-card)",
+                  border: "1px solid var(--border-2)",
+                  borderRadius: "var(--r-sm)",
+                  padding: "10px 14px",
+                  color: "var(--text-1)",
+                  fontSize: "12px",
+                  resize: "none",
+                  outline: "none",
+                  fontFamily: "inherit",
+                  height: "64px",
+                  boxSizing: "border-box",
+                  opacity: isRunning ? 0.5 : 1,
+                }}
+              />
+            </div>
+          </details>
         </div>
 
         {/* Main 2-column layout */}

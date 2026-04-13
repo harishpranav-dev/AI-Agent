@@ -6,7 +6,7 @@ purpose: API routes for running agents — POST /api/run, POST /api/planner, etc
          Invalid requests get rejected with clear error messages
          BEFORE they reach any agent code.
          
-author: HP & Mushan
+author: HP
 """
 
 import logging
@@ -39,6 +39,7 @@ class RunRequest(BaseModel):
     goal: str
     mode: str = "multi"
     client_id: str = "default"
+    custom_prompts: dict = {}
 
     @field_validator("goal")
     @classmethod
@@ -132,7 +133,8 @@ async def run_agents(request: RunRequest, background_tasks: BackgroundTasks):
         goal=request.goal,
         mode=request.mode,
         session_id=request.client_id,
-        event_callback=ws_callback
+        event_callback=ws_callback,
+        custom_prompts=request.custom_prompts
     )
 
     return {
