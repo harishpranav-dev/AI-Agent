@@ -1,7 +1,7 @@
 /**
  * module: Navbar.jsx
  * purpose: Sticky frosted navbar — desktop pill tabs + mobile hamburger.
- *          Fully responsive. Glass morphism on dark.
+ *          Fully responsive. Glass morphism on dark with neon accents.
  */
 
 import { Link, useLocation } from "react-router-dom";
@@ -25,16 +25,30 @@ export default function Navbar() {
           position: "sticky",
           top: 0,
           zIndex: 100,
-          background: "rgba(9, 9, 11, 0.72)",
-          backdropFilter: "saturate(180%) blur(20px)",
-          WebkitBackdropFilter: "saturate(180%) blur(20px)",
-          borderBottom: "1px solid var(--border-1)",
+          background: "rgba(0, 0, 0, 0.55)",
+          backdropFilter: "saturate(180%) blur(28px)",
+          WebkitBackdropFilter: "saturate(180%) blur(28px)",
+          borderBottom: "1px solid rgba(255,255,255,0.04)",
         }}
       >
+        {/* Top neon shine */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: "3%",
+            right: "3%",
+            height: "1px",
+            background:
+              "linear-gradient(90deg, transparent, rgba(0,212,255,0.2), rgba(123,97,255,0.15), rgba(0,212,255,0.1), transparent)",
+            pointerEvents: "none",
+          }}
+        />
+
         <div
           className="container-main"
           style={{
-            height: "56px",
+            height: "58px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -43,27 +57,38 @@ export default function Navbar() {
           {/* ── Brand ── */}
           <Link
             to="/"
+            className="btn-press"
             style={{ display: "flex", alignItems: "center", gap: "10px" }}
           >
             <div
               style={{
-                width: "30px",
-                height: "30px",
+                width: "32px",
+                height: "32px",
                 borderRadius: "9px",
-                background: "linear-gradient(135deg, #7c5cfc, #a78bfa)",
+                background: "var(--grad-neon)",
+                backgroundSize: "200% 200%",
+                animation: "gradient-flow 4s ease infinite",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: "0 2px 12px rgba(124,92,252,0.3)",
+                boxShadow:
+                  "0 2px 20px rgba(0,212,255,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
               }}
             >
               <span
-                style={{ color: "#fff", fontSize: "14px", fontWeight: 800 }}
+                style={{
+                  color: "#000",
+                  fontSize: "12px",
+                  fontWeight: 900,
+                  letterSpacing: "-0.03em",
+                  fontFamily: "Outfit, Inter, sans-serif",
+                }}
               >
                 AI
               </span>
             </div>
             <span
+              className="font-display"
               style={{
                 fontSize: "15px",
                 fontWeight: 700,
@@ -82,7 +107,8 @@ export default function Navbar() {
               gap: "2px",
               padding: "4px",
               borderRadius: "12px",
-              background: "var(--bg-raised)",
+              background: "rgba(10,10,15,0.6)",
+              backdropFilter: "blur(16px)",
               border: "1px solid var(--border-1)",
             }}
             className="desktop-tabs"
@@ -98,12 +124,28 @@ export default function Navbar() {
                     borderRadius: "8px",
                     fontSize: "13px",
                     fontWeight: active ? 600 : 400,
-                    color: active ? "var(--text-0)" : "var(--text-3)",
-                    background: active ? "var(--bg-subtle)" : "transparent",
+                    color: active ? "var(--neon)" : "var(--text-3)",
+                    background: active ? "rgba(0,212,255,0.06)" : "transparent",
                     border: active
-                      ? "1px solid var(--border-2)"
+                      ? "1px solid rgba(0,212,255,0.15)"
                       : "1px solid transparent",
-                    transition: "all 0.2s ease",
+                    transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+                    boxShadow: active
+                      ? "0 0 12px rgba(0,212,255,0.08)"
+                      : "none",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.color = "var(--text-1)";
+                      e.currentTarget.style.background =
+                        "rgba(255,255,255,0.03)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.color = "var(--text-3)";
+                      e.currentTarget.style.background = "transparent";
+                    }
                   }}
                 >
                   {tab.label}
@@ -126,12 +168,13 @@ export default function Navbar() {
             }}
           >
             <div
-              className="glow-pulse"
               style={{
                 width: "6px",
                 height: "6px",
                 borderRadius: "50%",
                 background: "var(--emerald)",
+                boxShadow: "0 0 10px rgba(0,255,170,0.5)",
+                animation: "glow-pulse 2s ease-in-out infinite",
               }}
             />
             <span
@@ -151,13 +194,14 @@ export default function Navbar() {
             className="mobile-menu-btn"
             onClick={() => setMobileOpen(!mobileOpen)}
             style={{
-              display: "none" /* shown via CSS media query */,
+              display: "none",
               background: "var(--bg-subtle)",
               border: "1px solid var(--border-2)",
               borderRadius: "8px",
               padding: "6px 10px",
               cursor: "pointer",
               color: "var(--text-1)",
+              transition: "all 0.2s ease",
             }}
           >
             <svg
@@ -185,8 +229,9 @@ export default function Navbar() {
             position: "fixed",
             inset: 0,
             zIndex: 99,
-            background: "rgba(9,9,11,0.95)",
-            backdropFilter: "blur(20px)",
+            background: "rgba(0,0,0,0.92)",
+            backdropFilter: "blur(28px)",
+            WebkitBackdropFilter: "blur(28px)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
@@ -195,26 +240,28 @@ export default function Navbar() {
             paddingTop: "60px",
           }}
         >
-          {tabs.map((tab) => {
+          {tabs.map((tab, i) => {
             const active = pathname === tab.path;
             return (
               <Link
                 key={tab.path}
                 to={tab.path}
                 onClick={() => setMobileOpen(false)}
+                className="rise"
                 style={{
                   padding: "14px 48px",
                   borderRadius: "var(--r-md)",
                   fontSize: "16px",
                   fontWeight: active ? 700 : 500,
-                  color: active ? "var(--accent)" : "var(--text-2)",
-                  background: active ? "var(--accent-soft)" : "transparent",
+                  color: active ? "var(--neon)" : "var(--text-2)",
+                  background: active ? "var(--neon-soft)" : "transparent",
                   border: active
-                    ? "1px solid var(--accent-border)"
+                    ? "1px solid var(--neon-border)"
                     : "1px solid transparent",
                   transition: "all 0.2s ease",
                   width: "240px",
                   textAlign: "center",
+                  animationDelay: `${i * 0.05}s`,
                 }}
               >
                 {tab.label}
@@ -236,6 +283,7 @@ export default function Navbar() {
                 height: "6px",
                 borderRadius: "50%",
                 background: "var(--emerald)",
+                boxShadow: "0 0 10px rgba(0,255,170,0.5)",
               }}
             />
             <span style={{ fontSize: "12px", color: "var(--emerald)" }}>
@@ -245,7 +293,6 @@ export default function Navbar() {
         </div>
       )}
 
-      {/* ── Responsive CSS ── */}
       <style>{`
         @media (max-width: 768px) {
           .desktop-tabs { display: none !important; }

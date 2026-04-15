@@ -1,8 +1,6 @@
 /**
  * module: MultiAgent.jsx
- * purpose: Main Multi-Agent Studio page — the centerpiece of AutoAgent Studio.
- *          Assembles goal input, agent pipeline cards, live log, stat bar,
- *          and task result into a responsive 2-column layout.
+ * purpose: Main Multi-Agent Studio page.
  * author: HP & Mushan
  */
 
@@ -13,13 +11,6 @@ import LiveLog from "../components/LiveLog";
 import StatBar from "../components/StatBar";
 import TaskResult from "../components/TaskResult";
 
-/**
- * MultiAgent — full multi-agent UI page.
- *
- * Layout:
- *   Desktop (>768px): 2 columns — left (input + pipeline + log), right (stats + result)
- *   Mobile  (<768px): single column, everything stacks
- */
 export default function MultiAgent() {
   const [goal, setGoal] = useState("");
   const [customPrompts, setCustomPrompts] = useState({
@@ -35,48 +26,61 @@ export default function MultiAgent() {
   const isError = status === "error";
   const canRun = goal.trim().length > 0 && !isRunning;
 
-  /** Fires the multi-agent pipeline */
   const handleRun = () => {
     if (!canRun) return;
     run(goal, "multi", customPrompts);
   };
-
-  /** Resets everything for a new run */
   const handleReset = () => {
     reset();
     setGoal("");
   };
-
-  /** Allow Ctrl+Enter / Cmd+Enter to submit */
   const handleKeyDown = (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && canRun) {
-      handleRun();
-    }
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && canRun) handleRun();
   };
 
   return (
     <>
-      {/* Responsive layout styles */}
       <style>{`
-        .multi-layout {
-          display: grid;
-          grid-template-columns: 1fr;
-          gap: 20px;
-        }
-        @media (min-width: 768px) {
-          .multi-layout {
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-          }
-        }
+        .multi-layout { display: grid; grid-template-columns: 1fr; gap: 20px; }
+        @media (min-width: 768px) { .multi-layout { grid-template-columns: 1fr 1fr; gap: 24px; } }
       `}</style>
 
       <div style={{ paddingTop: "0", paddingBottom: "48px" }}>
-        {/* Page header */}
-        <div className="rise" style={{ marginBottom: "24px" }}>
-          <h1
+        {/* Header */}
+        <div className="rise" style={{ marginBottom: "28px" }}>
+          <div
             style={{
-              fontSize: "clamp(20px, 3vw, 26px)",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "8px",
+            }}
+          >
+            <div
+              style={{
+                width: "8px",
+                height: "8px",
+                borderRadius: "3px",
+                background: "var(--grad-neon)",
+                boxShadow: "0 0 10px rgba(0,212,255,0.3)",
+              }}
+            />
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 700,
+                color: "var(--text-4)",
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+              }}
+            >
+              Multi-Agent Pipeline
+            </span>
+          </div>
+          <h1
+            className="font-display"
+            style={{
+              fontSize: "clamp(22px, 3vw, 30px)",
               fontWeight: 800,
               color: "var(--text-0)",
               letterSpacing: "-0.03em",
@@ -90,6 +94,7 @@ export default function MultiAgent() {
               color: "var(--text-3)",
               fontSize: "clamp(13px, 2vw, 14px)",
               lineHeight: 1.5,
+              maxWidth: "520px",
             }}
           >
             Enter a goal and watch three AI agents — Planner, Researcher, and
@@ -97,15 +102,14 @@ export default function MultiAgent() {
           </p>
         </div>
 
-        {/* Goal input area */}
+        {/* Goal input */}
         <div
-          className="rise-d1"
+          className="rise-d1 glass-card-heavy glass-shine"
           style={{
-            background: "var(--bg-raised)",
-            border: "1px solid var(--border-1)",
-            borderRadius: "var(--r-lg)",
             padding: "20px",
             marginBottom: "20px",
+            position: "relative",
+            overflow: "hidden",
           }}
         >
           <label
@@ -121,7 +125,6 @@ export default function MultiAgent() {
           >
             Your Goal
           </label>
-
           <textarea
             value={goal}
             onChange={(e) => setGoal(e.target.value)}
@@ -143,81 +146,90 @@ export default function MultiAgent() {
               lineHeight: 1.6,
               opacity: isRunning ? 0.5 : 1,
               boxSizing: "border-box",
+              transition: "border-color 0.25s ease, box-shadow 0.25s ease",
             }}
           />
-
-          {/* Action buttons */}
           <div
             style={{
               display: "flex",
               gap: "10px",
               marginTop: "14px",
               flexWrap: "wrap",
+              alignItems: "center",
             }}
           >
             {!isComplete && !isError && (
               <button
                 onClick={handleRun}
                 disabled={!canRun}
+                className={canRun ? "btn-press btn-neon" : ""}
                 style={{
                   padding: "10px 24px",
                   borderRadius: "var(--r-sm)",
                   fontSize: "13px",
-                  fontWeight: 600,
-                  color: "#fff",
-                  background: canRun ? "var(--accent)" : "var(--bg-muted)",
-                  border: `1px solid ${canRun ? "var(--accent-border)" : "var(--border-1)"}`,
-                  boxShadow: canRun ? "var(--shadow-btn)" : "none",
+                  fontWeight: 700,
+                  color: canRun ? "#000" : "var(--text-3)",
+                  background: canRun ? "var(--grad-neon)" : "var(--bg-muted)",
+                  border: "none",
+                  boxShadow: canRun ? "0 2px 20px rgba(0,212,255,0.3)" : "none",
                   cursor: canRun ? "pointer" : "not-allowed",
-                  transition: "all 0.2s ease",
+                  transition: "all 0.25s ease",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
                 }}
               >
-                {isRunning ? "⏳ Agents Working..." : "Run Agents →"}
+                {isRunning ? (
+                  <>
+                    <span className="typing-dots" style={{ color: "#000" }}>
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </span>
+                    Agents Working...
+                  </>
+                ) : (
+                  "Run Agents →"
+                )}
               </button>
             )}
-
             {(isComplete || isError) && (
               <button
                 onClick={handleReset}
+                className="btn-press btn-glass"
                 style={{
                   padding: "10px 24px",
                   borderRadius: "var(--r-sm)",
                   fontSize: "13px",
                   fontWeight: 600,
-                  color: "var(--text-1)",
-                  background: "var(--bg-subtle)",
-                  border: "1px solid var(--border-2)",
                   cursor: "pointer",
-                  transition: "all 0.2s ease",
                 }}
               >
                 ↻ New Task
               </button>
             )}
-
             {!isRunning && goal.trim().length > 0 && (
               <span
                 style={{
                   color: "var(--text-4)",
                   fontSize: "11px",
-                  alignSelf: "center",
-                  marginLeft: "4px",
+                  padding: "3px 8px",
+                  borderRadius: "var(--r-sm)",
+                  background: "var(--bg-subtle)",
+                  border: "1px solid var(--border-0)",
                 }}
               >
-                Ctrl + Enter to run
+                ⌘ + Enter
               </span>
             )}
           </div>
         </div>
-        {/* ── Agent Customization Panel ── */}
+
+        {/* Customization */}
         <div className="rise-d1" style={{ marginBottom: "20px" }}>
           <details
-            style={{
-              background: "var(--bg-raised)",
-              border: "1px solid var(--border-1)",
-              borderRadius: "var(--r-lg)",
-              padding: "16px 20px",
-            }}
+            className="glass-card-heavy"
+            style={{ padding: "16px 20px" }}
           >
             <summary
               style={{
@@ -231,18 +243,28 @@ export default function MultiAgent() {
                 justifyContent: "space-between",
               }}
             >
-              <span>⚙️ Customize Agent Prompts</span>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "8px" }}
+              >
+                <span>⚙️</span>
+                <span>Customize Agent Prompts</span>
+              </div>
               <span
                 style={{
                   color: "var(--text-4)",
-                  fontSize: "11px",
-                  fontWeight: 500,
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  padding: "2px 8px",
+                  borderRadius: "var(--r-full)",
+                  background: "var(--bg-subtle)",
+                  border: "1px solid var(--border-0)",
                 }}
               >
                 Advanced
               </span>
             </summary>
-
             <p
               style={{
                 fontSize: "12px",
@@ -255,146 +277,84 @@ export default function MultiAgent() {
               Override agent system prompts below. Leave empty to use defaults.
             </p>
 
-            {/* Planner prompt */}
-            <div style={{ marginBottom: "14px" }}>
-              <p
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  color: "#a78bfa",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  marginBottom: "6px",
-                }}
+            {[
+              { key: "planner", label: "Planner Agent", color: "#7B61FF" },
+              {
+                key: "researcher",
+                label: "Researcher Agent",
+                color: "#00ffaa",
+              },
+              { key: "writer", label: "Writer Agent", color: "#ffb800" },
+            ].map((agent) => (
+              <div
+                key={agent.key}
+                style={{ marginBottom: agent.key === "writer" ? 0 : "14px" }}
               >
-                Planner Agent
-              </p>
-              <textarea
-                value={customPrompts.planner}
-                onChange={(e) =>
-                  setCustomPrompts((p) => ({ ...p, planner: e.target.value }))
-                }
-                placeholder="Leave empty to use default prompt..."
-                disabled={isRunning}
-                style={{
-                  width: "100%",
-                  background: "var(--bg-card)",
-                  border: "1px solid var(--border-2)",
-                  borderRadius: "var(--r-sm)",
-                  padding: "10px 14px",
-                  color: "var(--text-1)",
-                  fontSize: "12px",
-                  resize: "none",
-                  outline: "none",
-                  fontFamily: "inherit",
-                  height: "64px",
-                  boxSizing: "border-box",
-                  opacity: isRunning ? 0.5 : 1,
-                }}
-              />
-            </div>
-
-            {/* Researcher prompt */}
-            <div style={{ marginBottom: "14px" }}>
-              <p
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  color: "#34d399",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  marginBottom: "6px",
-                }}
-              >
-                Researcher Agent
-              </p>
-              <textarea
-                value={customPrompts.researcher}
-                onChange={(e) =>
-                  setCustomPrompts((p) => ({
-                    ...p,
-                    researcher: e.target.value,
-                  }))
-                }
-                placeholder="Leave empty to use default prompt..."
-                disabled={isRunning}
-                style={{
-                  width: "100%",
-                  background: "var(--bg-card)",
-                  border: "1px solid var(--border-2)",
-                  borderRadius: "var(--r-sm)",
-                  padding: "10px 14px",
-                  color: "var(--text-1)",
-                  fontSize: "12px",
-                  resize: "none",
-                  outline: "none",
-                  fontFamily: "inherit",
-                  height: "64px",
-                  boxSizing: "border-box",
-                  opacity: isRunning ? 0.5 : 1,
-                }}
-              />
-            </div>
-
-            {/* Writer prompt */}
-            <div>
-              <p
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  color: "#fbbf24",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  marginBottom: "6px",
-                }}
-              >
-                Writer Agent
-              </p>
-              <textarea
-                value={customPrompts.writer}
-                onChange={(e) =>
-                  setCustomPrompts((p) => ({ ...p, writer: e.target.value }))
-                }
-                placeholder="Leave empty to use default prompt..."
-                disabled={isRunning}
-                style={{
-                  width: "100%",
-                  background: "var(--bg-card)",
-                  border: "1px solid var(--border-2)",
-                  borderRadius: "var(--r-sm)",
-                  padding: "10px 14px",
-                  color: "var(--text-1)",
-                  fontSize: "12px",
-                  resize: "none",
-                  outline: "none",
-                  fontFamily: "inherit",
-                  height: "64px",
-                  boxSizing: "border-box",
-                  opacity: isRunning ? 0.5 : 1,
-                }}
-              />
-            </div>
+                <p
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: agent.color,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    marginBottom: "6px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <span
+                    style={{
+                      width: "6px",
+                      height: "6px",
+                      borderRadius: "2px",
+                      background: agent.color,
+                    }}
+                  />
+                  {agent.label}
+                </p>
+                <textarea
+                  value={customPrompts[agent.key]}
+                  onChange={(e) =>
+                    setCustomPrompts((p) => ({
+                      ...p,
+                      [agent.key]: e.target.value,
+                    }))
+                  }
+                  placeholder="Leave empty to use default prompt..."
+                  disabled={isRunning}
+                  style={{
+                    width: "100%",
+                    background: "var(--bg-card)",
+                    border: "1px solid var(--border-2)",
+                    borderRadius: "var(--r-sm)",
+                    padding: "10px 14px",
+                    color: "var(--text-1)",
+                    fontSize: "12px",
+                    resize: "none",
+                    outline: "none",
+                    fontFamily: "inherit",
+                    height: "64px",
+                    boxSizing: "border-box",
+                    opacity: isRunning ? 0.5 : 1,
+                    transition: "border-color 0.2s ease",
+                  }}
+                />
+              </div>
+            ))}
           </details>
         </div>
 
-        {/* Main 2-column layout */}
+        {/* 2-column layout */}
         <div className="multi-layout">
-          {/* ====== LEFT COLUMN: Pipeline + Log ====== */}
           <div
             style={{ display: "flex", flexDirection: "column", gap: "16px" }}
           >
-            {/* Agent pipeline — 3 cards with arrows between them */}
             <div
               className="rise-d2"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0",
-              }}
+              style={{ display: "flex", flexDirection: "column", gap: "0" }}
             >
               <AgentCard role="planner" state={agentStates.planner} />
-
-              {/* Arrow connector */}
               <div
                 style={{
                   display: "flex",
@@ -403,21 +363,20 @@ export default function MultiAgent() {
                 }}
               >
                 <div
+                  className={`connector-line ${agentStates.planner === "done" ? "active" : ""}`}
                   style={{
-                    width: "2px",
-                    height: "20px",
                     background:
                       agentStates.planner === "done"
-                        ? "rgba(167,139,250,0.3)"
+                        ? "linear-gradient(180deg, rgba(123,97,255,0.4), rgba(0,255,170,0.4))"
                         : "var(--border-1)",
-                    transition: "background 0.3s ease",
+                    color:
+                      agentStates.planner === "done"
+                        ? "#7B61FF"
+                        : "transparent",
                   }}
                 />
               </div>
-
               <AgentCard role="researcher" state={agentStates.researcher} />
-
-              {/* Arrow connector */}
               <div
                 style={{
                   display: "flex",
@@ -426,22 +385,21 @@ export default function MultiAgent() {
                 }}
               >
                 <div
+                  className={`connector-line ${agentStates.researcher === "done" ? "active" : ""}`}
                   style={{
-                    width: "2px",
-                    height: "20px",
                     background:
                       agentStates.researcher === "done"
-                        ? "rgba(52,211,153,0.3)"
+                        ? "linear-gradient(180deg, rgba(0,255,170,0.4), rgba(255,184,0,0.4))"
                         : "var(--border-1)",
-                    transition: "background 0.3s ease",
+                    color:
+                      agentStates.researcher === "done"
+                        ? "#00ffaa"
+                        : "transparent",
                   }}
                 />
               </div>
-
               <AgentCard role="writer" state={agentStates.writer} />
             </div>
-
-            {/* Live log — shows when running or complete */}
             {(isRunning || isComplete || isError) && (
               <div className="rise-d3">
                 <LiveLog logs={logs} />
@@ -449,25 +407,20 @@ export default function MultiAgent() {
             )}
           </div>
 
-          {/* ====== RIGHT COLUMN: Stats + Result ====== */}
           <div
             style={{ display: "flex", flexDirection: "column", gap: "16px" }}
           >
-            {/* Stat bar — always visible once running starts */}
             {(isRunning || isComplete || isError) && (
               <div className="rise-d2">
                 <StatBar stats={stats} elapsed={elapsed} status={status} />
               </div>
             )}
-
-            {/* Task result — shows placeholder then final report */}
             <div className="rise-d3">
               <TaskResult result={result} />
             </div>
           </div>
         </div>
 
-        {/* Error banner */}
         {isError && (
           <div
             className="rise"
@@ -475,25 +428,32 @@ export default function MultiAgent() {
               marginTop: "16px",
               padding: "14px 18px",
               background: "var(--rose-soft)",
-              border: "1px solid rgba(251,113,133,0.2)",
+              border: "1px solid rgba(255,77,106,0.2)",
               borderRadius: "var(--r-md)",
               color: "var(--rose)",
               fontSize: "13px",
               fontWeight: 500,
+              backdropFilter: "blur(8px)",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
             }}
           >
-            Something went wrong. Check that your backend is running at{" "}
-            <code
-              style={{
-                background: "rgba(251,113,133,0.1)",
-                padding: "2px 6px",
-                borderRadius: "4px",
-                fontSize: "12px",
-              }}
-            >
-              localhost:8000
-            </code>{" "}
-            and try again.
+            <span style={{ fontSize: "16px" }}>⚠️</span>
+            <span>
+              Something went wrong. Check that your backend is running at{" "}
+              <code
+                style={{
+                  background: "rgba(255,77,106,0.1)",
+                  padding: "2px 6px",
+                  borderRadius: "4px",
+                  fontSize: "12px",
+                }}
+              >
+                localhost:8000
+              </code>{" "}
+              and try again.
+            </span>
           </div>
         )}
       </div>

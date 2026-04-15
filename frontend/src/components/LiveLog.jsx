@@ -1,54 +1,38 @@
 /**
  * module: LiveLog.jsx
- * purpose: Real-time scrolling log feed that displays agent events as they
- *          happen. Each entry gets a colored dot matching its agent, a timestamp,
- *          and the message. Auto-scrolls to show the latest event.
+ * purpose: Real-time scrolling log feed that displays agent events.
  * author: HP & Mushan
  */
 
 import React, { useEffect, useRef } from "react";
 
-/**
- * Maps log color names (from useAgent hook) to actual CSS colors.
- * The hook tags each log entry with a color string like 'planner', 'researcher', etc.
- */
 const DOT_COLORS = {
-  planner: "#a78bfa",
-  researcher: "#34d399",
-  writer: "#fbbf24",
-  accent: "var(--accent)",
+  planner: "#7B61FF",
+  researcher: "#00ffaa",
+  writer: "#ffb800",
+  accent: "var(--neon)",
   emerald: "var(--emerald)",
   rose: "var(--rose)",
   default: "var(--text-4)",
 };
 
-/**
- * LiveLog — renders a scrollable list of agent events.
- *
- * Props:
- *   logs — array of { type, message, color, time } from useAgent hook
- */
 export default function LiveLog({ logs }) {
   const bottomRef = useRef(null);
 
-  // Auto-scroll to the bottom whenever a new log entry arrives
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
   return (
     <div
+      className="glass-card-heavy glass-shine"
       style={{
-        background: "var(--bg-raised)",
-        border: "1px solid var(--border-1)",
-        borderRadius: "var(--r-lg)",
         padding: "16px",
         display: "flex",
         flexDirection: "column",
         gap: "0",
       }}
     >
-      {/* Header */}
       <div
         style={{
           display: "flex",
@@ -59,38 +43,62 @@ export default function LiveLog({ logs }) {
           borderBottom: "1px solid var(--border-0)",
         }}
       >
-        <span
-          style={{
-            color: "var(--text-1)",
-            fontSize: "13px",
-            fontWeight: 700,
-            letterSpacing: "-0.01em",
-          }}
-        >
-          Live Agent Log
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <div
+            style={{
+              width: "18px",
+              height: "18px",
+              borderRadius: "5px",
+              background: "var(--neon-soft)",
+              border: "1px solid var(--neon-border)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: "9px",
+              color: "var(--neon)",
+              fontWeight: 800,
+              fontFamily: "monospace",
+            }}
+          >
+            {">"}
+          </div>
+          <span
+            className="font-display"
+            style={{
+              color: "var(--text-1)",
+              fontSize: "13px",
+              fontWeight: 700,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            Live Agent Log
+          </span>
+        </div>
         <span
           style={{
             color: "var(--text-4)",
             fontSize: "11px",
             fontWeight: 500,
+            fontVariantNumeric: "tabular-nums",
+            padding: "2px 8px",
+            borderRadius: "var(--r-full)",
+            background: "var(--bg-subtle)",
+            border: "1px solid var(--border-0)",
           }}
         >
           {logs.length} events
         </span>
       </div>
 
-      {/* Scrollable log area */}
       <div
         style={{
           maxHeight: "280px",
           overflowY: "auto",
           display: "flex",
           flexDirection: "column",
-          gap: "6px",
-          /* Custom scrollbar for dark theme */
+          gap: "4px",
           scrollbarWidth: "thin",
-          scrollbarColor: "var(--bg-muted) transparent",
+          scrollbarColor: "rgba(255,255,255,0.06) transparent",
         }}
       >
         {logs.length === 0 && (
@@ -99,70 +107,78 @@ export default function LiveLog({ logs }) {
               color: "var(--text-4)",
               fontSize: "13px",
               textAlign: "center",
-              padding: "32px 0",
+              padding: "36px 0",
               fontStyle: "italic",
             }}
           >
+            <div
+              style={{ fontSize: "20px", marginBottom: "8px", opacity: 0.3 }}
+            >
+              ⌘
+            </div>
             Agent events will appear here...
           </div>
         )}
 
-        {logs.map((log, index) => (
-          <div
-            key={index}
-            className="rise"
-            style={{
-              display: "flex",
-              alignItems: "flex-start",
-              gap: "10px",
-              padding: "6px 8px",
-              borderRadius: "var(--r-sm)",
-              background:
-                index === logs.length - 1 ? "var(--bg-card)" : "transparent",
-              transition: "background 0.3s ease",
-            }}
-          >
-            {/* Colored dot */}
+        {logs.map((log, index) => {
+          const dotColor = DOT_COLORS[log.color] || DOT_COLORS.default;
+          const isLatest = index === logs.length - 1;
+          return (
             <div
+              key={index}
+              className="log-entry"
               style={{
-                width: "7px",
-                height: "7px",
-                borderRadius: "50%",
-                background: DOT_COLORS[log.color] || DOT_COLORS.default,
-                flexShrink: 0,
-                marginTop: "5px",
-              }}
-            />
-
-            {/* Message */}
-            <span
-              style={{
-                color: "var(--text-2)",
-                fontSize: "12.5px",
-                lineHeight: 1.5,
-                flex: 1,
-                wordBreak: "break-word",
+                display: "flex",
+                alignItems: "flex-start",
+                gap: "10px",
+                padding: "7px 10px",
+                borderRadius: "var(--r-sm)",
+                background: isLatest ? "rgba(0,212,255,0.03)" : "transparent",
+                borderLeft: isLatest
+                  ? `2px solid ${dotColor}`
+                  : "2px solid transparent",
+                transition: "background 0.3s ease",
+                animationDelay: `${Math.min(index * 0.03, 0.3)}s`,
               }}
             >
-              {log.message}
-            </span>
-
-            {/* Timestamp */}
-            <span
-              style={{
-                color: "var(--text-4)",
-                fontSize: "10.5px",
-                fontFamily: "monospace",
-                flexShrink: 0,
-                marginTop: "2px",
-              }}
-            >
-              {log.time}
-            </span>
-          </div>
-        ))}
-
-        {/* Invisible div to scroll to */}
+              <div
+                style={{
+                  width: "7px",
+                  height: "7px",
+                  borderRadius: "50%",
+                  background: dotColor,
+                  flexShrink: 0,
+                  marginTop: "5px",
+                  boxShadow: isLatest ? `0 0 8px ${dotColor}` : "none",
+                }}
+              />
+              <span
+                style={{
+                  color: isLatest ? "var(--text-1)" : "var(--text-2)",
+                  fontSize: "12.5px",
+                  lineHeight: 1.5,
+                  flex: 1,
+                  wordBreak: "break-word",
+                }}
+              >
+                {log.message}
+              </span>
+              <span
+                style={{
+                  color: "var(--text-4)",
+                  fontSize: "10px",
+                  fontFamily: "monospace",
+                  flexShrink: 0,
+                  marginTop: "2px",
+                  fontVariantNumeric: "tabular-nums",
+                  opacity: 0.6,
+                }}
+              >
+                {log.time}
+              </span>
+            </div>
+          );
+        })}
         <div ref={bottomRef} />
       </div>
     </div>

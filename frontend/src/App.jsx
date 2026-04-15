@@ -1,6 +1,6 @@
 /**
  * module: App.jsx
- * purpose: Root layout with ambient background, router, navbar, footer.
+ * purpose: Root layout with animated background, router, navbar, footer.
  */
 
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -20,7 +20,10 @@ export default function App() {
           background: "var(--bg-base)",
         }}
       >
-        {/* ── Ambient light orbs ── */}
+        {/* ── Animated grid background ── */}
+        <div className="animated-grid" />
+
+        {/* ── Aurora light orbs (alive, not static) ── */}
         <div
           style={{
             position: "fixed",
@@ -30,53 +33,73 @@ export default function App() {
             overflow: "hidden",
           }}
         >
+          {/* Primary cyan orb — top center */}
           <div
             style={{
               position: "absolute",
-              top: "-15%",
-              left: "45%",
-              width: "700px",
-              height: "500px",
+              top: "-20%",
+              left: "40%",
+              width: "800px",
+              height: "600px",
               background:
-                "radial-gradient(ellipse, rgba(124,92,252,0.08) 0%, transparent 70%)",
-              filter: "blur(40px)",
+                "radial-gradient(ellipse, rgba(0,212,255,0.07) 0%, rgba(0,212,255,0.02) 40%, transparent 70%)",
+              filter: "blur(60px)",
+              animation: "orb-float-1 20s ease-in-out infinite",
             }}
           />
+          {/* Purple orb — bottom left */}
           <div
             style={{
               position: "absolute",
-              bottom: "10%",
-              left: "-5%",
+              bottom: "5%",
+              left: "-8%",
+              width: "500px",
+              height: "500px",
+              background:
+                "radial-gradient(circle, rgba(123,97,255,0.06) 0%, rgba(123,97,255,0.02) 40%, transparent 65%)",
+              filter: "blur(50px)",
+              animation: "orb-float-2 25s ease-in-out infinite",
+            }}
+          />
+          {/* Emerald orb — right side */}
+          <div
+            style={{
+              position: "absolute",
+              top: "35%",
+              right: "-6%",
               width: "400px",
               height: "400px",
               background:
-                "radial-gradient(circle, rgba(34,197,94,0.04) 0%, transparent 60%)",
-              filter: "blur(40px)",
+                "radial-gradient(circle, rgba(0,255,170,0.04) 0%, transparent 60%)",
+              filter: "blur(50px)",
+              animation: "orb-float-1 30s ease-in-out infinite reverse",
             }}
           />
+          {/* Subtle amber orb — mid */}
           <div
             style={{
               position: "absolute",
-              top: "40%",
-              right: "-5%",
-              width: "350px",
-              height: "350px",
+              top: "60%",
+              left: "25%",
+              width: "300px",
+              height: "300px",
               background:
-                "radial-gradient(circle, rgba(56,189,248,0.03) 0%, transparent 60%)",
+                "radial-gradient(circle, rgba(255,184,0,0.025) 0%, transparent 60%)",
               filter: "blur(40px)",
+              animation: "orb-float-2 18s ease-in-out infinite",
             }}
           />
         </div>
 
-        {/* ── Grain overlay ── */}
+        {/* ── Noise/grain overlay ── */}
         <div
           style={{
             position: "fixed",
             inset: 0,
             pointerEvents: "none",
             zIndex: 9999,
-            opacity: 0.015,
-            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+            opacity: 0.018,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
           }}
         />
 
@@ -94,18 +117,32 @@ export default function App() {
               <Route path="/history" element={<History />} />
             </Routes>
           </main>
+
+          {/* ── Footer ── */}
           <footer
             style={{
               textAlign: "center",
-              padding: "24px 20px",
-              borderTop: "1px solid var(--border-0)",
+              padding: "28px 20px",
+              position: "relative",
             }}
           >
+            {/* Neon divider */}
+            <div
+              style={{
+                position: "absolute",
+                top: 0,
+                left: "10%",
+                right: "10%",
+                height: "1px",
+                background:
+                  "linear-gradient(90deg, transparent, rgba(0,212,255,0.15), rgba(123,97,255,0.1), transparent)",
+              }}
+            />
             <p
               style={{
                 fontSize: "11px",
                 color: "var(--text-4)",
-                letterSpacing: "0.03em",
+                letterSpacing: "0.05em",
               }}
             >
               - Built by HARISHPRANAV R [24BSC022]

@@ -1,8 +1,6 @@
 /**
  * module: StatsDashboard.jsx
- * purpose: Performance dashboard that shows aggregate stats across all
- *          completed agent runs for this session. Fetches from /api/stats
- *          and displays metric cards in a responsive grid.
+ * purpose: Performance dashboard showing aggregate stats across all completed agent runs.
  * author: HP & Mushan
  */
 
@@ -12,15 +10,6 @@ import axios from "axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-/**
- * StatsDashboard — fetches session stats and renders metric cards.
- *
- * Displayed at the top of the History page. Shows:
- * - Total tasks completed
- * - Average time per task
- * - Total tools called
- * - Multi vs Single agent run counts
- */
 export default function StatsDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -42,57 +31,81 @@ export default function StatsDashboard() {
     fetchStats();
   }, []);
 
-  // Don't render anything if loading or no completed tasks
-  if (loading || !stats || stats.total_tasks === 0) {
-    return null;
-  }
+  if (loading || !stats || stats.total_tasks === 0) return null;
 
-  /** The five metrics we display */
   const metrics = [
     {
       label: "Total Tasks",
       value: stats.total_tasks,
       icon: "📊",
+      accentColor: "var(--neon)",
     },
     {
       label: "Avg Time",
       value: `${stats.avg_time_seconds}s`,
       icon: "⏱️",
+      accentColor: "var(--purple)",
     },
     {
       label: "Tools Called",
       value: stats.total_tools_called,
       icon: "🔧",
+      accentColor: "var(--amber)",
     },
     {
       label: "Multi-Agent",
       value: stats.multi_agent_runs,
       icon: "🤖",
+      accentColor: "#7B61FF",
     },
     {
       label: "Single-Agent",
       value: stats.single_agent_runs,
       icon: "⚡",
+      accentColor: "#00ffaa",
     },
   ];
 
   return (
     <div className="fade-up" style={{ marginBottom: "24px" }}>
-      {/* Section label */}
-      <p
+      <div
         style={{
-          fontSize: "11px",
-          fontWeight: 600,
-          color: "var(--text-4)",
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
+          display: "flex",
+          alignItems: "center",
+          gap: "8px",
           marginBottom: "12px",
         }}
       >
-        Session Performance
-      </p>
+        <div
+          style={{
+            width: "6px",
+            height: "6px",
+            borderRadius: "2px",
+            background: "var(--emerald)",
+            boxShadow: "0 0 8px var(--emerald)",
+          }}
+        />
+        <p
+          style={{
+            fontSize: "11px",
+            fontWeight: 600,
+            color: "var(--text-4)",
+            textTransform: "uppercase",
+            letterSpacing: "0.08em",
+            margin: 0,
+          }}
+        >
+          Session Performance
+        </p>
+        <div
+          style={{
+            flex: 1,
+            height: "1px",
+            background: "linear-gradient(90deg, var(--border-1), transparent)",
+          }}
+        />
+      </div>
 
-      {/* Metric cards grid */}
       <div
         style={{
           display: "grid",
@@ -103,33 +116,41 @@ export default function StatsDashboard() {
         {metrics.map((metric) => (
           <div
             key={metric.label}
+            className="shimmer-on-hover glass-shine"
             style={{
-              background: "var(--bg-raised)",
+              background: "rgba(6,6,8,0.65)",
+              backdropFilter: "blur(16px)",
               border: "1px solid var(--border-1)",
               borderRadius: "var(--r-md)",
               padding: "16px 20px",
-              transition: "border-color 0.15s ease",
+              transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
+              position: "relative",
+              overflow: "hidden",
+              cursor: "default",
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.borderColor = "var(--border-2)";
+              e.currentTarget.style.transform = "translateY(-3px)";
+              e.currentTarget.style.boxShadow = "var(--shadow-float)";
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.borderColor = "var(--border-1)";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "none";
             }}
           >
-            {/* Icon + Label row */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
                 gap: "6px",
-                marginBottom: "6px",
+                marginBottom: "8px",
               }}
             >
               <span style={{ fontSize: "13px" }}>{metric.icon}</span>
               <p
                 style={{
-                  fontSize: "11px",
+                  fontSize: "10px",
                   fontWeight: 600,
                   color: "var(--text-4)",
                   textTransform: "uppercase",
@@ -140,19 +161,31 @@ export default function StatsDashboard() {
                 {metric.label}
               </p>
             </div>
-
-            {/* Value */}
             <p
+              className="font-display"
               style={{
                 fontSize: "28px",
                 fontWeight: 800,
                 color: "var(--text-0)",
                 letterSpacing: "-0.03em",
                 margin: 0,
+                fontVariantNumeric: "tabular-nums",
               }}
             >
               {metric.value}
             </p>
+            <div
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: "10%",
+                right: "10%",
+                height: "2px",
+                background: metric.accentColor,
+                opacity: 0.12,
+                borderRadius: "2px",
+              }}
+            />
           </div>
         ))}
       </div>
