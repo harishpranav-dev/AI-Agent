@@ -7,12 +7,13 @@ author: HP & Mushan
 
 import os
 import logging
+from typing import Optional
 from motor.motor_asyncio import AsyncIOMotorClient
 
 logger = logging.getLogger(__name__)
 
 # Module-level client — created once, reused across requests
-_client: AsyncIOMotorClient | None = None
+_client: Optional[AsyncIOMotorClient] = None
 _database = None
 
 

@@ -7,7 +7,7 @@ author: HP & Mushan
 
 import json
 import logging
-from typing import Dict
+from typing import Dict, Optional
 from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,12 @@ class WebSocketManager:
             del self.active_connections[client_id]
             logger.info(f"WebSocket disconnected: {client_id}")
 
-    async def send_event(self, client_id: str, event_type: str, data: dict = None) -> None:
+    async def send_event(
+        self,
+        client_id: str,
+        event_type: str,
+        data: Optional[dict] = None
+    ) -> None:
         """
         Send a typed event to a specific connected client.
 
@@ -73,25 +78,24 @@ class WebSocketManager:
             logger.error(f"Failed to send WebSocket event to {client_id}: {e}")
             self.disconnect(client_id)
 
-    async def broadcast(self, event_type: str, data: dict = None) -> None:
+    async def broadcast(self, event_type: str, data: Optional[dict] = None) -> None:
         """
         Send an event to ALL connected clients.
+
+        Iterates over a snapshot of the connection IDs because send_event()
+        may call disconnect() internally on send failures, and mutating
+        self.active_connections mid-iteration raises RuntimeError.
+
+        Error handling and cleanup happen inside send_event(), so no
+        outer try/except is needed here.
 
         Args:
             event_type: Event name.
             data: Optional payload dict.
         """
-        disconnected = []
-        for client_id in self.active_connections:
-            try:
-                await self.send_event(client_id, event_type, data)
-            except Exception:
-                disconnected.append(client_id)
-
-        # Clean up any broken connections
-        for client_id in disconnected:
-            self.disconnect(client_id)
+        for client_id in list(self.active_connections.keys()):
+            await self.send_event(client_id, event_type, data)
 
 
 # Single global instance — imported wherever needed
-ws_manager = WebSocketManager()
+ws_manager = WebSocketManager()
