@@ -1,6 +1,9 @@
 /**
  * module: useWebSocket.js
  * purpose: React hook for WebSocket connection to backend agent stream.
+ *          Opens a socket for the given clientId, auto-reconnects on drop,
+ *          and exposes a running list of parsed events plus a connection flag.
+ * author: HP & Mushan
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react'

@@ -125,7 +125,7 @@ export default function LiveLog({ logs }) {
           const isLatest = index === logs.length - 1;
           return (
             <div
-              key={index}
+              key={`${log.time}-${index}-${log.type}`}
               className="log-entry"
               style={{
                 display: "flex",

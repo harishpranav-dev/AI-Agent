@@ -6,21 +6,36 @@
 
 import React, { useState } from "react";
 
+/**
+ * Escape the five characters that have special meaning in HTML so user /
+ * agent content can be safely interpolated into a template that will be
+ * passed to dangerouslySetInnerHTML. This MUST be applied to any raw text
+ * before it is wrapped in our markdown tags.
+ */
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function simpleMarkdown(text) {
   if (!text) return "";
   return text
     .split("\n")
     .map((line) => {
       if (line.startsWith("### "))
-        return `<h3 style="color:var(--text-0);font-size:14px;font-weight:700;margin:16px 0 6px;">${line.slice(4)}</h3>`;
+        return `<h3 style="color:var(--text-0);font-size:14px;font-weight:700;margin:16px 0 6px;">${escapeHtml(line.slice(4))}</h3>`;
       if (line.startsWith("## "))
-        return `<h2 style="color:var(--text-0);font-size:16px;font-weight:700;margin:20px 0 8px;">${line.slice(3)}</h2>`;
+        return `<h2 style="color:var(--text-0);font-size:16px;font-weight:700;margin:20px 0 8px;">${escapeHtml(line.slice(3))}</h2>`;
       if (line.startsWith("# "))
-        return `<h1 style="color:var(--text-0);font-size:18px;font-weight:800;margin:20px 0 10px;">${line.slice(2)}</h1>`;
+        return `<h1 style="color:var(--text-0);font-size:18px;font-weight:800;margin:20px 0 10px;">${escapeHtml(line.slice(2))}</h1>`;
       if (line.startsWith("- ") || line.startsWith("* "))
-        return `<div style="display:flex;gap:8px;margin:3px 0;"><span style="color:var(--neon);">•</span><span>${line.slice(2)}</span></div>`;
+        return `<div style="display:flex;gap:8px;margin:3px 0;"><span style="color:var(--neon);">•</span><span>${escapeHtml(line.slice(2))}</span></div>`;
       if (line.trim() === "") return '<div style="height:8px;"></div>';
-      return `<p style="margin:4px 0;line-height:1.65;">${line}</p>`;
+      return `<p style="margin:4px 0;line-height:1.65;">${escapeHtml(line)}</p>`;
     })
     .join("")
     .replace(

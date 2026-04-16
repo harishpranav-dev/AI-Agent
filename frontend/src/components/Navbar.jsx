@@ -193,6 +193,9 @@ export default function Navbar() {
           <button
             className="mobile-menu-btn"
             onClick={() => setMobileOpen(!mobileOpen)}
+            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-menu-overlay"
             style={{
               display: "none",
               background: "var(--bg-subtle)",
@@ -225,6 +228,8 @@ export default function Navbar() {
       {/* ── Mobile Menu Overlay ── */}
       {mobileOpen && (
         <div
+          id="mobile-menu-overlay"
+          role="menu"
           style={{
             position: "fixed",
             inset: 0,

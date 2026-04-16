@@ -1,17 +1,17 @@
 /**
  * module: useAgent.js
  * purpose: Custom React hook that manages the entire multi-agent run lifecycle.
- *          Connects WebSocket for real-time events, tracks each agent's state
+ *          Connects a WebSocket for real-time events, tracks each agent's state
  *          (waiting/thinking/done), collects live logs, and stores the final result.
  *
- *          KEY FIX: Uses shared getSessionId() so the client_id sent to the
- *          backend matches the session_id used by History.jsx to fetch tasks.
- *          Without this, tasks get saved under a random ID and History can't find them.
+ *          The client_id sent to the backend matches the shared session_id from
+ *          getSessionId() so that History.jsx can later retrieve tasks by the
+ *          same identifier they were saved under.
  *
  * author: HP & Mushan
  */
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { runAgents } from "../api/client";
 import { getSessionId } from "../utils/session";
 
@@ -93,7 +93,15 @@ export function useAgent() {
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onmessage = (event) => {
-        const { event: eventType, data } = JSON.parse(event.data);
+        let eventType;
+        let data;
+        try {
+          ({ event: eventType, data } = JSON.parse(event.data));
+        } catch (err) {
+          // Malformed payload — log and drop it rather than killing the handler.
+          console.error("[useAgent] Failed to parse WebSocket message:", err);
+          return;
+        }
 
         switch (eventType) {
           case "task_started":
@@ -224,6 +232,18 @@ export function useAgent() {
     setElapsed(0);
     clearInterval(timerRef.current);
     wsRef.current?.close();
+  }, []);
+
+  /**
+   * Unmount cleanup — close any open WebSocket and stop the live timer when
+   * the component using this hook goes away. Without this, navigating mid-run
+   * leaves sockets open and triggers setState-on-unmounted warnings.
+   */
+  useEffect(() => {
+    return () => {
+      clearInterval(timerRef.current);
+      wsRef.current?.close();
+    };
   }, []);
 
   return {
