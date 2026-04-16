@@ -1,11 +1,10 @@
 # AutoAgent Studio
 
-> AI Agents & Autonomous Systems — Full Stack Web Application
+🚀 **Live Demo:** https://ai-agent-tau-gilt.vercel.app/
+📡 **API:** https://ai-agent-production-178e.up.railway.app/docs
 
-**Live Demo:** [autoagent-studio.vercel.app](https://autoagent-studio.vercel.app) _(replace with your deployed URL)_
-**Repository:** [github.com/[your-username]/autoagent-studio](https://github.com/[your-username]/autoagent-studio)
-
----
+Multi-agent AI research system with Planner, Researcher, and Writer agents.
+Built with FastAPI, React, Claude API, Tavily, and MongoDB Atlas.
 
 ## What It Does
 
