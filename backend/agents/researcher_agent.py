@@ -5,11 +5,44 @@ purpose: Implements the Researcher Agent that uses web search
 author: HP & Mushan
 """
 
+import json
 import logging
 from agents.base_agent import BaseAgent
 from tools.tool_manager import TOOL_DEFINITIONS, execute_tool
 
 logger = logging.getLogger(__name__)
+
+
+def _count_findings(result: str) -> int:
+    """
+    Count the number of key_findings in a researcher JSON result.
+
+    The researcher returns JSON (sometimes wrapped in markdown code fences).
+    This helper safely parses the JSON and returns the length of the
+    key_findings array. Returns 0 if parsing fails rather than raising —
+    the count is used for UI display only and should never break the pipeline.
+
+    Args:
+        result: Raw string output from the Researcher agent.
+
+    Returns:
+        Number of findings in the parsed JSON, or 0 if parsing fails.
+    """
+    cleaned = result.strip()
+    if cleaned.startswith("```json"):
+        cleaned = cleaned[7:]
+    if cleaned.startswith("```"):
+        cleaned = cleaned[3:]
+    if cleaned.endswith("```"):
+        cleaned = cleaned[:-3]
+    cleaned = cleaned.strip()
+
+    try:
+        parsed = json.loads(cleaned)
+        findings = parsed.get("key_findings", [])
+        return len(findings) if isinstance(findings, list) else 0
+    except (json.JSONDecodeError, AttributeError):
+        return 0
 
 RESEARCHER_SYSTEM_PROMPT = """You are a thorough research specialist with access to web search.
 For each subtask given to you, find accurate, current information.
@@ -85,7 +118,7 @@ class ResearcherAgent(BaseAgent):
             await event_callback("researcher_complete", {
                 "subtask": subtask,
                 "result_preview": result[:200],
-                "findings_count": result.count("finding") or 1
+                "findings_count": _count_findings(result)
             })
 
         logger.info(f"[Researcher] Completed subtask: {subtask[:50]}...")

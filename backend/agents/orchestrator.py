@@ -1,13 +1,10 @@
 """
 module: orchestrator.py
 purpose: Manages the agent pipeline — coordinates Planner, Researcher,
-         and Writer agents in sequence. Supports both 'multi' and 'single' modes.
-         
-         PHASE 9 UPDATE: Single-agent mode now fully implemented.
-         - multi mode: Planner → Researcher (per subtask) → Writer
-         - single mode: Planner → Writer (skips research, uses LLM knowledge only)
-         
-author: HP
+         and Writer agents in sequence. Supports two modes:
+           - multi:  Planner → Researcher (per subtask) → Writer
+           - single: Planner → Writer (skips research, uses LLM knowledge only)
+author: HP & Mushan
 """
 
 import json
@@ -123,13 +120,37 @@ class Orchestrator:
         self.researcher = ResearcherAgent()
         self.writer = WriterAgent()
 
+    def _apply_custom_prompts(self, custom_prompts: Optional[dict]) -> None:
+        """
+        Override agent system prompts with user-supplied values.
+
+        Called at the start of a run. Each key is optional — missing
+        keys leave the corresponding agent's default prompt untouched.
+
+        Args:
+            custom_prompts: Dict with optional keys 'planner',
+                            'researcher', 'writer'. Or None for no overrides.
+        """
+        if not custom_prompts:
+            return
+
+        if custom_prompts.get("planner"):
+            self.planner.system_prompt = custom_prompts["planner"]
+            logger.info("[Orchestrator] Using custom Planner prompt")
+        if custom_prompts.get("researcher"):
+            self.researcher.system_prompt = custom_prompts["researcher"]
+            logger.info("[Orchestrator] Using custom Researcher prompt")
+        if custom_prompts.get("writer"):
+            self.writer.system_prompt = custom_prompts["writer"]
+            logger.info("[Orchestrator] Using custom Writer prompt")
+
     async def run(
         self,
         goal: str,
         mode: str = "multi",
         session_id: str = "default",
         event_callback: Optional[Callable] = None,
-        custom_prompts: dict = None
+        custom_prompts: Optional[dict] = None
     ) -> dict:
         """
         Execute the full agent pipeline.
@@ -140,6 +161,10 @@ class Orchestrator:
                   'single' (Planner+Writer only).
             session_id: Browser session ID for history tracking.
             event_callback: Async function to emit WebSocket events.
+            custom_prompts: Optional dict with keys 'planner', 'researcher',
+                            'writer' to override the default system prompts
+                            for this run. Any missing key falls back to
+                            the agent's default.
 
         Returns:
             Dict with task_id, report, and metadata.
@@ -147,20 +172,12 @@ class Orchestrator:
         start_time = time.time()
         tools_called = 0
 
+        # Apply any user-supplied custom prompts before the pipeline starts
+        self._apply_custom_prompts(custom_prompts)
+
         # Create task record in MongoDB
         task_doc = create_task_document(goal, mode, session_id)
         task_id = task_doc["task_id"]
-        # Apply custom system prompts if provided by the user
-        if custom_prompts:
-            if custom_prompts.get("planner"):
-                self.planner.system_prompt = custom_prompts["planner"]
-                logger.info("[Orchestrator] Using custom Planner prompt")
-            if custom_prompts.get("researcher"):
-                self.researcher.system_prompt = custom_prompts["researcher"]
-                logger.info("[Orchestrator] Using custom Researcher prompt")
-            if custom_prompts.get("writer"):
-                self.writer.system_prompt = custom_prompts["writer"]
-                logger.info("[Orchestrator] Using custom Writer prompt")
         database = get_database()
 
         if database is not None:
@@ -291,8 +308,14 @@ class Orchestrator:
                         {"task_id": task_id},
                         {"$set": task_doc}
                     )
-                except Exception:
-                    pass  # Don't let DB error mask the real error
+                except Exception as db_error:
+                    # Log but don't re-raise — the original task error is
+                    # what matters to the user. This just surfaces DB issues
+                    # in logs instead of hiding them.
+                    logger.warning(
+                        f"[Orchestrator] Could not persist failure state "
+                        f"for task {task_id}: {db_error}"
+                    )
 
             if event_callback:
                 await event_callback("task_error", {

@@ -31,7 +31,7 @@ class BaseAgent:
         self,
         name: str,
         system_prompt: str,
-        tools: list = None,
+        tools: Optional[list] = None,
         model: str = "claude-sonnet-4-20250514"
     ):
         """
