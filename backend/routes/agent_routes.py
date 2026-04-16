@@ -1,17 +1,18 @@
 """
 module: agent_routes.py
-purpose: API routes for running agents — POST /api/run, POST /api/planner, etc.
-
-         PHASE 9 UPDATE: All inputs validated with Pydantic models.
-         Invalid requests get rejected with clear error messages
-         BEFORE they reach any agent code.
-         
-author: HP
+purpose: API routes for running agents.
+         - POST /api/run       runs the full agent pipeline
+         - POST /api/planner   runs only the Planner agent
+         - POST /api/researcher runs only the Researcher agent
+         - POST /api/writer    runs only the Writer agent
+         All inputs are validated by Pydantic models; invalid requests
+         are rejected with a 422 before reaching any agent code.
+author: HP & Mushan
 """
 
 import logging
 from fastapi import APIRouter, BackgroundTasks
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 from agents.orchestrator import Orchestrator
 from agents.planner_agent import PlannerAgent
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# ── PYDANTIC REQUEST MODELS (Phase 9) ─────────────────────────
+# ── PYDANTIC REQUEST MODELS ───────────────────────────────────
 # These validate every incoming request automatically.
 # If validation fails, FastAPI returns a 422 error with details.
 
@@ -39,7 +40,7 @@ class RunRequest(BaseModel):
     goal: str
     mode: str = "multi"
     client_id: str = "default"
-    custom_prompts: dict = {}
+    custom_prompts: dict = Field(default_factory=dict)
 
     @field_validator("goal")
     @classmethod
@@ -93,7 +94,7 @@ class ResearcherRequest(BaseModel):
 class WriterRequest(BaseModel):
     """Request body for POST /api/writer."""
     goal: str
-    findings: list[str] = []
+    findings: list[str] = Field(default_factory=list)
 
     @field_validator("goal")
     @classmethod
@@ -158,8 +159,9 @@ async def run_planner(request: PlannerRequest):
         result = await planner.create_plan(goal=request.goal)
         return {"success": True, "result": result}
     except Exception as e:
-        logger.error(f"Planner failed: {e}")
-        return {"success": False, "error": str(e)}
+        # Log the full error internally but don't expose it to the client.
+        logger.error(f"Planner failed: {e}", exc_info=True)
+        return {"success": False, "error": "Planner agent failed"}
 
 
 @router.post("/api/researcher")
@@ -178,8 +180,9 @@ async def run_researcher(request: ResearcherRequest):
         )
         return {"success": True, "result": result}
     except Exception as e:
-        logger.error(f"Researcher failed: {e}")
-        return {"success": False, "error": str(e)}
+        # Log the full error internally but don't expose it to the client.
+        logger.error(f"Researcher failed: {e}", exc_info=True)
+        return {"success": False, "error": "Researcher agent failed"}
 
 
 @router.post("/api/writer")
@@ -198,5 +201,6 @@ async def run_writer(request: WriterRequest):
         )
         return {"success": True, "result": result}
     except Exception as e:
-        logger.error(f"Writer failed: {e}")
-        return {"success": False, "error": str(e)}
+        # Log the full error internally but don't expose it to the client.
+        logger.error(f"Writer failed: {e}", exc_info=True)
+        return {"success": False, "error": "Writer agent failed"}

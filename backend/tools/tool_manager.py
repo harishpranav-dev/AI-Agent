@@ -11,7 +11,10 @@ from tools.text_tools import summarize_text, format_report
 
 logger = logging.getLogger(__name__)
 
-# Registry: maps tool names (as Claude knows them) to handler functions
+# Registry: maps tool names (as Claude knows them) to handler functions.
+# NOTE: `format_report` is registered but not currently exposed to Claude
+# via TOOL_DEFINITIONS below, so no agent can invoke it right now. It is
+# kept here intentionally as a ready-to-wire option for a future phase.
 TOOL_REGISTRY = {
     "web_search": web_search,
     "summarize_text": summarize_text,
@@ -87,4 +90,4 @@ async def execute_tool(tool_name: str, tool_input: dict) -> str:
     except Exception as e:
         error_msg = f"Tool '{tool_name}' failed: {e}"
         logger.error(error_msg)
-        return f"Error: {error_msg}"
+        return f"Error: {error_msg}"

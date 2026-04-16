@@ -10,7 +10,7 @@ author: HP & Mushan
 import re
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
@@ -274,7 +274,7 @@ async def export_task_as_pdf(task_id: str):
             try:
                 date_str = str(task["created_at"])[:10]
             except (IndexError, TypeError):
-                date_str = datetime.utcnow().strftime("%Y-%m-%d")
+                date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
         # ── Build PDF ──
         pdf = ReportPDF(
@@ -305,5 +305,6 @@ async def export_task_as_pdf(task_id: str):
     except HTTPException:
         raise
     except Exception as e:
+        # Log the full exception internally but return a generic message.
         logger.error(f"PDF export failed for task {task_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="PDF generation failed")

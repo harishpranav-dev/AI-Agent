@@ -1,8 +1,12 @@
 """
 module: history_routes.py
-purpose: API routes for retrieving task history from MongoDB.
-         GET /api/history/{session_id} — all tasks for a session.
-         GET /api/history/task/{task_id} — single task details.
+purpose: API routes for retrieving past task data from MongoDB.
+         - GET /api/history/{session_id}        all tasks for a session
+         - GET /api/history/task/{task_id}      single task details
+         - GET /api/stats/{session_id}          aggregated session stats
+
+         The stats endpoint lives here because it consumes the same
+         MongoDB data the history endpoints do.
 author: HP & Mushan
 """
 
@@ -40,8 +44,9 @@ async def get_session_history(session_id: str):
         logger.info(f"GET /api/history/{session_id} — returned {len(tasks)} tasks")
         return {"success": True, "tasks": tasks}
     except Exception as e:
-        logger.error(f"History fetch failed: {e}")
-        return {"success": False, "error": str(e), "tasks": []}
+        # Log full error internally, return a generic message to the client.
+        logger.error(f"History fetch failed: {e}", exc_info=True)
+        return {"success": False, "error": "Failed to fetch history", "tasks": []}
 
 
 @router.get("/api/history/task/{task_id}")
@@ -70,8 +75,10 @@ async def get_task_by_id(task_id: str):
 
         return {"success": True, "task": task}
     except Exception as e:
-        logger.error(f"Task fetch failed: {e}")
-        return {"success": False, "error": str(e)}
+        # Log full error internally, return a generic message to the client.
+        logger.error(f"Task fetch failed: {e}", exc_info=True)
+        return {"success": False, "error": "Failed to fetch task"}
+
 
 @router.get("/api/stats/{session_id}")
 async def get_session_stats(session_id: str):
@@ -132,4 +139,4 @@ async def get_session_stats(session_id: str):
 
     except Exception as e:
         logger.error(f"Stats fetch failed: {e}", exc_info=True)
-        return {"success": False, "error": "Failed to fetch stats"}
+        return {"success": False, "error": "Failed to fetch stats"}
