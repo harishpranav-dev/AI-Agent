@@ -105,8 +105,9 @@ export function useAgent() {
             break;
 
           case "planner_thinking":
+            // Backend does not send a `message` field here — craft one locally.
             setAgentStates((s) => ({ ...s, planner: "thinking" }));
-            addLog("planner", data.message, "planner");
+            addLog("planner", "Planner analyzing goal...", "planner");
             break;
 
           case "planner_complete":
@@ -136,24 +137,49 @@ export function useAgent() {
             setStats((s) => ({ ...s, tools: s.tools + 1 }));
             break;
 
-          case "writer_thinking":
+          case "researcher_skipped":
+            // Single-agent mode — researcher is intentionally skipped.
+            setAgentStates((s) => ({ ...s, researcher: "done" }));
+            addLog(
+              "researcher",
+              data.reason || "Skipped — single-agent mode",
+              "researcher",
+            );
+            break;
+
+          case "writer_thinking": {
+            // Backend sends { goal, findings_count } — no `message` field.
+            // Build a meaningful log line from what we actually receive.
             setAgentStates((s) => ({
               ...s,
               researcher: "done",
               writer: "thinking",
             }));
-            addLog("writer", data.message, "writer");
+            const count = data.findings_count ?? 0;
+            const msg = count > 0
+              ? `Writing report from ${count} finding${count === 1 ? "" : "s"}...`
+              : "Writing report...";
+            addLog("writer", msg, "writer");
             break;
+          }
 
           case "writer_complete":
+            // Only mark writer 'done' here. task_complete arrives right after
+            // and carries the final report + metadata.
+            setAgentStates((s) => ({ ...s, writer: "done" }));
+            break;
+
           case "task_complete":
+            // Real orchestrator return shape: { task_id, goal, mode, report,
+            // plan, metadata: { total_time_seconds, tools_called,
+            // agents_used, steps_completed } }
             setAgentStates((s) => ({ ...s, writer: "done" }));
             setStatus("complete");
             setResult(data.report);
             setStats({
-              tools: data.stats?.tools_called || 0,
-              steps: data.stats?.steps_completed || 0,
-              time: data.duration_seconds || 0,
+              tools: data.metadata?.tools_called ?? 0,
+              steps: data.metadata?.steps_completed ?? 0,
+              time: data.metadata?.total_time_seconds ?? 0,
             });
             addLog("system", "Report complete!", "emerald");
             clearInterval(timerRef.current);

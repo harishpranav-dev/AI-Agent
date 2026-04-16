@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timezone
 
 
-def create_task_document(goal: str, mode: str, session_id: str) -> dict:
+def create_task_document(goal: str, mode: str, session_id: str = "default") -> dict:
     """
     Creates a new task document with 'running' status.
 
@@ -17,6 +17,7 @@ def create_task_document(goal: str, mode: str, session_id: str) -> dict:
         goal: The user's original goal text.
         mode: Either 'single' or 'multi' agent mode.
         session_id: Browser session identifier for history tracking.
+                    Defaults to 'default' if not provided.
 
     Returns:
         A dict ready to insert into MongoDB.
@@ -34,7 +35,8 @@ def create_task_document(goal: str, mode: str, session_id: str) -> dict:
             "total_time_seconds": 0,
             "tools_called": 0,
             "agents_used": [],
-            "steps_completed": 0
+            "steps_completed": 0,
+            "word_count": 0
         },
         "created_at": datetime.now(timezone.utc).isoformat(),
         "completed_at": None
@@ -74,4 +76,27 @@ def mark_task_failed(task_doc: dict, error_message: str) -> dict:
     task_doc["status"] = "failed"
     task_doc["metadata"]["error"] = error_message
     task_doc["completed_at"] = datetime.now(timezone.utc).isoformat()
+    return task_doc
+
+
+def format_task_for_response(task_doc: dict) -> dict:
+    """
+    Prepares a MongoDB task document for JSON API response.
+
+    MongoDB uses ObjectId for its '_id' field, which cannot be
+    serialized to JSON directly. This helper converts it to a string
+    so the document can safely be returned to the frontend.
+
+    Args:
+        task_doc: A task document dict fetched from MongoDB, or None.
+
+    Returns:
+        The same dict with '_id' converted to string, or None if input is None.
+    """
+    if task_doc is None:
+        return None
+
+    if "_id" in task_doc:
+        task_doc["_id"] = str(task_doc["_id"])
+
     return task_doc
