@@ -1,0 +1,38 @@
+HOW TO GENERATE sample_report.pdf
+==================================
+
+The sample_report.pdf is the single piece of *evidence* in this submission package —
+it proves the system actually produces output end-to-end. Generate it from your own
+live deployment so it's authentic.
+
+STEPS:
+
+1. Open your live URL (from live_url.txt) in a browser
+2. Navigate to Multi-Agent Studio
+3. Enter a strong research goal. Good examples:
+   - "Research the latest breakthroughs in quantum computing and their real-world
+     applications in 2026"
+   - "Analyze current trends in renewable energy adoption globally"
+   - "Summarize recent advances in large language models and their impact on
+     software engineering"
+4. Click Run Agents
+5. Wait for the full pipeline to complete (~30 seconds)
+6. Click "Export PDF" on the completed report
+7. Rename the downloaded file to: sample_report.pdf
+8. Place it in this submission/ folder (alongside this file)
+9. DELETE this instruction file before zipping the final submission
+
+WHAT TO PICK:
+
+Choose a topic that:
+- Has strong, current web results (so the Researcher finds good data)
+- Produces a visually clean, multi-section report
+- Looks impressive to an examiner scanning the PDF
+
+AVOID topics that:
+- Are too narrow (Researcher may find thin data)
+- Require specialized knowledge to evaluate
+- Are politically sensitive (distracts from the tech)
+
+The PDF should look like a polished, multi-page research report with an executive
+summary, structured sections, and cited sources.

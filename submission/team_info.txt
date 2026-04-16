@@ -1,0 +1,21 @@
+GENERAL-AGENT — Team Information
+====================================
+
+Project Title : GENERAL-AGENT — Multi-Agent AI Research System
+Submission    : AI Agents & Autonomous Systems
+
+
+
+Team 
+------------
+
+1. Name        : [HARISHPRANAV R]
+   Roll Number : [24BSC022]
+   Role        : [END TO END APPLICATION BUILDER]
+
+
+
+
+Contact
+-------
+Email         : [FILL IN: preferred contact email]

@@ -1,4 +1,4 @@
-# AutoAgent Studio
+# GENERAL-AGENT
 
 🚀 **Live Demo:** https://ai-agent-tau-gilt.vercel.app/
 📡 **API:** https://ai-agent-production-178e.up.railway.app/docs
