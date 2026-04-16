@@ -1,16 +1,47 @@
-# React + Vite
+# frontend/
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite + Tailwind CSS frontend for AutoAgent Studio. Styled with a
+custom **Neon Noir** dark theme.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+| Layer | Technology |
+|---|---|
+| Framework | React 18 |
+| Build tool | Vite 5 |
+| Styling | Tailwind CSS 3 |
+| HTTP | Axios |
+| Real-time | Native WebSocket API (wrapped in `useWebSocket`) |
+| PDF export | `html2pdf.js` |
 
-## React Compiler
+## Running locally
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+cp .env.example .env   # set VITE_API_URL if not using localhost:8000
+npm run dev
+```
 
-## Expanding the ESLint configuration
+Frontend runs at http://localhost:5173 and expects the backend at
+http://localhost:8000.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Build for production
+
+```bash
+npm run build      # outputs to dist/
+npm run preview    # preview the production build locally
+```
+
+## Environment variables
+
+```env
+VITE_API_URL=http://localhost:8000
+VITE_WS_URL=ws://localhost:8000
+```
+
+Vite only exposes variables prefixed with `VITE_` to client code.
+
+## Source layout
+
+See `src/` for the code. Every subfolder there has its own `README.md`
+explaining what lives inside.
