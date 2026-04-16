@@ -117,7 +117,8 @@ cp .env.example .env   # then fill in your keys
 uvicorn main:app --reload --port 8000
 ```
 
-Backend will be live at `http://localhost:8000`. Interactive API docs are at
+Backend will be live at `https://ai-agent-production-178e.up.railway.app/`.
+Interactive API docs are at
 `http://localhost:8000/docs`.
 
 ### Frontend
@@ -131,7 +132,7 @@ cp .env.example .env   # then set API URL if different
 npm run dev
 ```
 
-Frontend will be live at `http://localhost:5173`.
+Frontend will be live at `https://ai-agent-tau-gilt.vercel.app/`.
 
 ---
 
