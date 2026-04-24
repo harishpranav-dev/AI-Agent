@@ -504,7 +504,12 @@ export default function History() {
           >
             <div
               className="modal-content glass-card-heavy hud-corners"
-              style={{ position: "relative", overflow: "hidden" }}
+              style={{
+                position: "relative",
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
+              }}
             >
               <div
                 className="hud-corners-bottom"
@@ -512,6 +517,7 @@ export default function History() {
                   position: "absolute",
                   inset: 0,
                   pointerEvents: "none",
+                  zIndex: 1,
                 }}
               />
 
@@ -526,6 +532,7 @@ export default function History() {
                   background:
                     "linear-gradient(90deg, #dc2626, #f59e0b, #ef4444)",
                   opacity: 0.5,
+                  zIndex: 2,
                 }}
               />
 
@@ -554,7 +561,17 @@ export default function History() {
                 ✕
               </button>
 
-              <div style={{ padding: "24px" }}>
+              {/* ── Scrollable content area ── */}
+              <div
+                style={{
+                  padding: "24px",
+                  flex: 1,
+                  overflowY: "auto",
+                  minHeight: 0,
+                  scrollbarWidth: "thin",
+                  scrollbarColor: "rgba(255,255,255,0.06) transparent",
+                }}
+              >
                 {/* Meta chips */}
                 <div
                   style={{
@@ -727,10 +744,6 @@ export default function History() {
                         borderRadius: "var(--r-md)",
                         background: "var(--bg-raised)",
                         border: "1px solid var(--border-0)",
-                        maxHeight: "400px",
-                        overflowY: "auto",
-                        scrollbarWidth: "thin",
-                        scrollbarColor: "rgba(255,255,255,0.06) transparent",
                       }}
                       dangerouslySetInnerHTML={{
                         __html: renderMarkdown(selected.report),
@@ -751,133 +764,135 @@ export default function History() {
                       : "No report available"}
                   </div>
                 )}
+              </div>
 
-                {/* Action buttons */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "12px",
-                    marginTop: "20px",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                  }}
-                >
-                  {selected.report && (
-                    <button
-                      onClick={() => handleExport(selected.task_id)}
-                      disabled={exporting}
-                      className={!exporting ? "btn-press btn-neon" : ""}
-                      style={{
-                        padding: "10px 24px",
-                        borderRadius: "var(--r-sm)",
-                        fontSize: "12px",
-                        fontWeight: 700,
-                        color: exporting ? "var(--text-3)" : "#fff",
-                        background: exporting
-                          ? "var(--bg-muted)"
-                          : "var(--grad-primary)",
-                        border: "none",
-                        cursor: exporting ? "not-allowed" : "pointer",
-                        transition: "all 0.25s ease",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "8px",
-                      }}
-                    >
-                      {exporting ? (
-                        <>
-                          <span
-                            className="spin-slow"
-                            style={{
-                              width: "14px",
-                              height: "14px",
-                              border: "2px solid rgba(255,255,255,0.3)",
-                              borderTopColor: "#fff",
-                              borderRadius: "50%",
-                              display: "inline-block",
-                            }}
-                          />{" "}
-                          Exporting...
-                        </>
-                      ) : (
-                        "📄 Export PDF"
-                      )}
-                    </button>
-                  )}
+              {/* ── Sticky action buttons at bottom ── */}
+              <div
+                style={{
+                  padding: "16px 24px",
+                  borderTop: "1px solid var(--border-1)",
+                  display: "flex",
+                  gap: "12px",
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  flexShrink: 0,
+                  background: "rgba(8,8,8,0.95)",
+                }}
+              >
+                {selected.report && (
+                  <button
+                    onClick={() => handleExport(selected.task_id)}
+                    disabled={exporting}
+                    className={!exporting ? "btn-press btn-neon" : ""}
+                    style={{
+                      padding: "10px 24px",
+                      borderRadius: "var(--r-sm)",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      color: exporting ? "var(--text-3)" : "#fff",
+                      background: exporting
+                        ? "var(--bg-muted)"
+                        : "var(--grad-primary)",
+                      border: "none",
+                      cursor: exporting ? "not-allowed" : "pointer",
+                      transition: "all 0.25s ease",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    {exporting ? (
+                      <>
+                        <span
+                          className="spin-slow"
+                          style={{
+                            width: "14px",
+                            height: "14px",
+                            border: "2px solid rgba(255,255,255,0.3)",
+                            borderTopColor: "#fff",
+                            borderRadius: "50%",
+                            display: "inline-block",
+                          }}
+                        />{" "}
+                        Exporting...
+                      </>
+                    ) : (
+                      "📄 Export PDF"
+                    )}
+                  </button>
+                )}
 
-                  {/* Delete — with confirmation */}
-                  {confirmDelete === selected.task_id ? (
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "8px",
-                        alignItems: "center",
-                      }}
-                    >
-                      <span style={{ fontSize: "12px", color: "var(--rose)" }}>
-                        Confirm delete?
-                      </span>
-                      <button
-                        onClick={() => handleDelete(selected.task_id)}
-                        disabled={deleting}
-                        className="btn-press"
-                        style={{
-                          padding: "6px 16px",
-                          borderRadius: "var(--r-sm)",
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          color: "#fff",
-                          background: "rgba(239,68,68,0.8)",
-                          border: "none",
-                          cursor: deleting ? "not-allowed" : "pointer",
-                        }}
-                      >
-                        {deleting ? "Deleting..." : "Yes, Delete"}
-                      </button>
-                      <button
-                        onClick={() => setConfirmDelete(null)}
-                        className="btn-press"
-                        style={{
-                          padding: "6px 12px",
-                          borderRadius: "var(--r-sm)",
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          color: "var(--text-2)",
-                          background: "var(--bg-subtle)",
-                          border: "1px solid var(--border-2)",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  ) : (
+                {/* Delete — with confirmation */}
+                {confirmDelete === selected.task_id ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "8px",
+                      alignItems: "center",
+                    }}
+                  >
+                    <span style={{ fontSize: "12px", color: "var(--rose)" }}>
+                      Confirm delete?
+                    </span>
                     <button
-                      onClick={() => setConfirmDelete(selected.task_id)}
+                      onClick={() => handleDelete(selected.task_id)}
+                      disabled={deleting}
                       className="btn-press"
                       style={{
-                        padding: "10px 20px",
+                        padding: "6px 16px",
                         borderRadius: "var(--r-sm)",
-                        fontSize: "12px",
+                        fontSize: "11px",
                         fontWeight: 600,
-                        color: "var(--rose)",
-                        background: "transparent",
-                        border: "1px solid rgba(239,68,68,0.25)",
-                        cursor: "pointer",
-                        transition: "all 0.2s ease",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background =
-                          "rgba(239,68,68,0.08)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "transparent";
+                        color: "#fff",
+                        background: "rgba(239,68,68,0.8)",
+                        border: "none",
+                        cursor: deleting ? "not-allowed" : "pointer",
                       }}
                     >
-                      Delete Mission
+                      {deleting ? "Deleting..." : "Yes, Delete"}
                     </button>
-                  )}
-                </div>
+                    <button
+                      onClick={() => setConfirmDelete(null)}
+                      className="btn-press"
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: "var(--r-sm)",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "var(--text-2)",
+                        background: "var(--bg-subtle)",
+                        border: "1px solid var(--border-2)",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDelete(selected.task_id)}
+                    className="btn-press"
+                    style={{
+                      padding: "10px 20px",
+                      borderRadius: "var(--r-sm)",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      color: "var(--rose)",
+                      background: "transparent",
+                      border: "1px solid rgba(239,68,68,0.25)",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(239,68,68,0.08)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "transparent";
+                    }}
+                  >
+                    Delete Mission
+                  </button>
+                )}
               </div>
             </div>
           </div>
