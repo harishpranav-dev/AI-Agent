@@ -1,7 +1,7 @@
 """
 module: planner_agent.py
 purpose: Implements the Planner Agent that breaks user goals into
-         3-5 clear, actionable subtasks for the Researcher.
+         2-3 clear, actionable subtasks for the Researcher.
 author: HP & Mushan
 """
 
@@ -11,10 +11,11 @@ from agents.base_agent import BaseAgent
 logger = logging.getLogger(__name__)
 
 PLANNER_SYSTEM_PROMPT = """You are a strategic planning expert for an autonomous AI research system.
-Your ONLY job is to analyze the user's goal and break it into 3-5 clear, 
+Your ONLY job is to analyze the user's goal and break it into 2-3 clear, 
 specific, searchable subtasks.
 
 Rules:
+- Create exactly 2 or 3 subtasks — never more than 3
 - Each subtask must be independently researchable
 - Subtasks must together fully cover the original goal
 - Be specific — not "research X" but "find current statistics on X"
@@ -30,10 +31,10 @@ Rules:
 class PlannerAgent(BaseAgent):
     """
     Strategic thinker agent. Takes a vague user goal and produces
-    a structured plan with 3-5 specific, searchable subtasks.
+    a structured plan with 2-3 specific, searchable subtasks.
 
     Like a project manager who receives "build a website" and
-    creates a task list: design mockup, set up hosting, write content, etc.
+    creates a focused task list: design mockup, set up hosting, write content.
     """
 
     def __init__(self):

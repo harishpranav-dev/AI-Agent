@@ -44,19 +44,20 @@ def _count_findings(result: str) -> int:
     except (json.JSONDecodeError, AttributeError):
         return 0
 
-RESEARCHER_SYSTEM_PROMPT = """You are a thorough research specialist with access to web search.
+RESEARCHER_SYSTEM_PROMPT = """You are a fast, focused research specialist with access to web search.
 For each subtask given to you, find accurate, current information.
 
 Rules:
-- Always use the web_search tool at least once per subtask
-- Prioritize recent sources (last 2 years)
-- Extract key facts, statistics, and findings
+- Use the web_search tool EXACTLY ONCE per subtask — one focused search query
+- Extract the most important facts from the search results immediately
+- Keep findings concise — 3-5 bullet points maximum
 - Always note your sources
+- Do NOT search multiple times — one search is enough
 - Return structured JSON only:
 {
   "subtask": "the subtask you researched",
-  "key_findings": ["finding 1", "finding 2"],
-  "statistics": ["stat 1", "stat 2"],
+  "key_findings": ["finding 1", "finding 2", "finding 3"],
+  "statistics": ["stat 1"],
   "sources": ["url or source name"],
   "confidence": "high" | "medium" | "low"
 }"""
@@ -67,7 +68,7 @@ class ResearcherAgent(BaseAgent):
     Information gatherer agent. For each subtask from the Planner,
     it searches the web and returns structured research findings.
 
-    Like a research assistant who gets a topic, digs through articles,
+    Like a research assistant who gets a topic, does one targeted search,
     and comes back with organized notes and source links.
     """
 
@@ -99,10 +100,10 @@ class ResearcherAgent(BaseAgent):
             JSON string with key_findings, statistics, sources, and confidence.
         """
         prompt = (
-            f"Research the following subtask thoroughly.\n\n"
+            f"Research the following subtask with ONE web search.\n\n"
             f"Overall goal: {goal_context}\n\n"
             f"Subtask to research: {subtask}\n\n"
-            f"Use the web_search tool to find current, real information."
+            f"Use the web_search tool once with a focused query, then return your findings."
         )
 
         if event_callback:
