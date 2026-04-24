@@ -44,15 +44,19 @@ export default function IntroSplash({ onComplete }) {
       }, 2200),
     );
 
-    // 4.5s → title reveals (particles still visible)
-    timers.push(setTimeout(() => setPhase("title"), 4500));
+    // 4.5s → title reveals AND particles start fading immediately
+    timers.push(
+      setTimeout(() => {
+        setPhase("title");
+        setParticleOpacity(0);
+      }, 4500),
+    );
 
-    // 6.0s → particles fade out, button appears
+    // 5.8s → particles fully gone, button appears
     timers.push(
       setTimeout(() => {
         setPhase("settled");
-        setParticleOpacity(0);
-      }, 6000),
+      }, 5800),
     );
 
     return () => timers.forEach(clearTimeout);
