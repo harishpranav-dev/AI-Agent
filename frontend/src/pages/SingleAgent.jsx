@@ -1,11 +1,13 @@
 /**
  * module: SingleAgent.jsx
- * purpose: Single Agent demo page.
+ * purpose: Single Agent demo page — Iron HUD theme.
+ *          Side-by-side: comparison table + goal input/result.
  * author: HP & Mushan
  */
 
 import { useState } from "react";
 import { useAgent } from "../hooks/useAgent";
+import TypingPlaceholder from "../components/TypingPlaceholder";
 
 const COMPARISON = [
   {
@@ -26,7 +28,7 @@ const COMPARISON = [
   {
     feature: "Accuracy",
     single: "Good for known topics",
-    multi: "High for current/specific topics",
+    multi: "High for current topics",
   },
   { feature: "Time", single: "5–10 seconds", multi: "20–60 seconds" },
   {
@@ -36,14 +38,13 @@ const COMPARISON = [
   },
 ];
 
-const featureIcons = {
-  "Agents used": "🤖",
-  "Web search": "🔍",
-  Steps: "📋",
-  Accuracy: "🎯",
-  Time: "⚡",
-  "Best for": "✨",
-};
+const SUGGESTIONS = [
+  "Summarize the key benefits of renewable energy...",
+  "Explain quantum computing in simple terms...",
+  "Compare Python and JavaScript for web development...",
+  "Write a brief history of artificial intelligence...",
+  "Analyze the impact of social media on society...",
+];
 
 export default function SingleAgent() {
   const [goal, setGoal] = useState("");
@@ -60,35 +61,32 @@ export default function SingleAgent() {
     reset();
     setGoal("");
   };
+  const handleKeyDown = (e) => {
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      e.key === "Enter" &&
+      goal.trim() &&
+      !isRunning
+    )
+      handleRun();
+  };
 
   return (
     <>
       <style>{`
-        .sa-page { max-width: 960px; margin: 0 auto; padding: 32px 20px 64px; }
+        .sa-layout { display: grid; grid-template-columns: 1fr; gap: 24px; }
+        @media (min-width: 768px) { .sa-layout { grid-template-columns: 1fr 1fr; } }
         .sa-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .sa-table { width: 100%; min-width: 580px; border-collapse: separate; border-spacing: 0; }
-        .sa-runner-grid { display: grid; grid-template-columns: 1fr; gap: 20px; }
-        @media (min-width: 768px) { .sa-runner-grid { grid-template-columns: 1fr 1fr; } }
-        .sa-textarea { width: 100%; min-height: 120px; resize: vertical; background: var(--bg-card); border: 1px solid var(--border-1); border-radius: var(--r-md); padding: 14px 16px; color: var(--text-0); font-size: 14px; font-family: 'Inter', sans-serif; line-height: 1.6; outline: none; transition: border-color 0.25s ease, box-shadow 0.25s ease; }
-        .sa-textarea:focus { border-color: var(--neon); box-shadow: 0 0 0 3px var(--neon-soft), var(--neon-glow); }
-        .sa-textarea::placeholder { color: var(--text-3); }
-        .sa-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 28px; border: none; border-radius: var(--r-full); font-size: 14px; font-weight: 700; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-        .sa-btn-primary { background: var(--grad-neon); color: #000; box-shadow: 0 2px 20px rgba(0,212,255,0.3), inset 0 1px 0 rgba(255,255,255,0.2); }
-        .sa-btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 32px rgba(0,212,255,0.4); }
-        .sa-btn-primary:active:not(:disabled) { transform: translateY(0.5px) scale(0.97); }
-        .sa-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; background: var(--bg-muted); color: var(--text-3); box-shadow: none; }
-        .sa-btn-ghost { background: rgba(255,255,255,0.04); color: var(--text-2); border: 1px solid var(--border-1); }
-        .sa-btn-ghost:hover { background: rgba(0,212,255,0.04); color: var(--text-1); border-color: var(--neon-border); }
-        @keyframes sa-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-        .sa-thinking { animation: sa-pulse 1.8s ease-in-out infinite; }
-        @keyframes sa-fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-        .sa-fade-in { animation: sa-fadeIn 0.4s ease-out both; }
+        .sa-table { width: 100%; min-width: 520px; border-collapse: separate; border-spacing: 0; }
         .sa-table-row { transition: background 0.2s ease; }
-        .sa-table-row:hover { background: rgba(0,212,255,0.02); }
+        .sa-table-row:hover { background: rgba(220,38,38,0.02); }
       `}</style>
 
-      <div className="sa-page">
-        <div className="rise" style={{ marginBottom: 40 }}>
+      <div
+        style={{ maxWidth: "1060px", margin: "0 auto", padding: "0 0 64px" }}
+      >
+        {/* Header */}
+        <div className="rise" style={{ marginBottom: 32 }}>
           <div
             style={{
               display: "flex",
@@ -102,28 +100,28 @@ export default function SingleAgent() {
                 width: "6px",
                 height: "6px",
                 borderRadius: "2px",
-                background: "var(--neon)",
-                boxShadow: "0 0 8px var(--neon)",
+                background: "var(--red)",
+                boxShadow: "0 0 8px var(--red)",
               }}
             />
-            <p
+            <span
+              className="font-mono"
               style={{
-                color: "var(--neon)",
-                fontSize: 12,
+                color: "var(--red)",
+                fontSize: 10,
                 fontWeight: 600,
-                letterSpacing: "0.06em",
+                letterSpacing: "0.08em",
                 textTransform: "uppercase",
-                margin: 0,
               }}
             >
               Single Agent Mode
-            </p>
+            </span>
           </div>
           <h1
             className="font-display"
             style={{
               color: "var(--text-0)",
-              fontSize: 28,
+              fontSize: "clamp(24px, 4vw, 30px)",
               fontWeight: 800,
               lineHeight: 1.2,
               letterSpacing: "-0.03em",
@@ -135,25 +133,29 @@ export default function SingleAgent() {
           <p
             style={{
               color: "var(--text-2)",
-              fontSize: 15,
+              fontSize: 14,
               lineHeight: 1.6,
-              marginTop: 8,
+              marginTop: 6,
               maxWidth: 560,
             }}
           >
-            The single-agent mode sends your goal directly to the Writer agent.
-            It's fast but relies on AI knowledge only — no web search, no
-            planning step.
+            The single-agent mode sends your goal directly to the Writer agent —
+            fast but relies on AI knowledge only.
           </p>
         </div>
 
+        {/* ── Comparison Table ── */}
         <div
-          className="rise-d1 glass-card-heavy"
-          style={{ overflow: "hidden", marginBottom: 40 }}
+          className="rise-d1 glass-card-heavy hud-corners"
+          style={{ overflow: "hidden", marginBottom: 28, position: "relative" }}
         >
           <div
+            className="hud-corners-bottom"
+            style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+          />
+          <div
             style={{
-              padding: "18px 24px",
+              padding: "14px 20px",
               borderBottom: "1px solid var(--border-0)",
               position: "relative",
             }}
@@ -165,39 +167,41 @@ export default function SingleAgent() {
                 left: 0,
                 right: 0,
                 height: "2px",
-                background:
-                  "linear-gradient(90deg, var(--neon), var(--purple), rgba(0,255,170,0.3))",
+                background: "linear-gradient(90deg, #dc2626, #f59e0b)",
                 opacity: 0.4,
                 borderRadius: "2px 2px 0 0",
               }}
             />
             <h2
-              className="font-display"
+              className="font-mono"
               style={{
-                color: "var(--text-0)",
-                fontSize: 16,
+                color: "var(--text-1)",
+                fontSize: 11,
                 fontWeight: 700,
                 margin: 0,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
               }}
             >
-              Single-Step vs Multi-Step Comparison
+              Single-Step vs Multi-Step
             </h2>
           </div>
           <div className="sa-table-wrap">
             <table className="sa-table">
               <thead>
-                <tr style={{ background: "rgba(17,17,22,0.6)" }}>
+                <tr style={{ background: "rgba(17,17,17,0.6)" }}>
                   {["Feature", "Single Agent", "Multi Agent"].map((h) => (
                     <th
                       key={h}
+                      className="font-mono"
                       style={{
-                        padding: "12px 20px",
+                        padding: "10px 18px",
                         textAlign: "left",
                         color: "var(--text-4)",
-                        fontSize: 11,
+                        fontSize: 9,
                         fontWeight: 700,
                         textTransform: "uppercase",
-                        letterSpacing: "0.08em",
+                        letterSpacing: "0.1em",
                       }}
                     >
                       {h}
@@ -219,22 +223,19 @@ export default function SingleAgent() {
                   >
                     <td
                       style={{
-                        padding: "14px 20px",
+                        padding: "12px 18px",
                         color: "var(--text-2)",
                         fontSize: 13,
                         fontWeight: 600,
                         whiteSpace: "nowrap",
                       }}
                     >
-                      <span style={{ marginRight: 8 }}>
-                        {featureIcons[row.feature]}
-                      </span>
                       {row.feature}
                     </td>
                     <td
                       style={{
-                        padding: "14px 20px",
-                        color: "var(--text-1)",
+                        padding: "12px 18px",
+                        color: "var(--text-2)",
                         fontSize: 13,
                       }}
                     >
@@ -242,9 +243,10 @@ export default function SingleAgent() {
                     </td>
                     <td
                       style={{
-                        padding: "14px 20px",
-                        color: "var(--text-1)",
+                        padding: "12px 18px",
+                        color: "var(--red)",
                         fontSize: 13,
+                        fontWeight: 500,
                       }}
                     >
                       {row.multi}
@@ -256,61 +258,121 @@ export default function SingleAgent() {
           </div>
         </div>
 
-        <div
-          className="rise-d2 glass-card-heavy glass-shine"
-          style={{ padding: 24, position: "relative", overflow: "hidden" }}
-        >
-          <h2
-            className="font-display"
-            style={{
-              color: "var(--text-0)",
-              fontSize: 16,
-              fontWeight: 700,
-              margin: "0 0 6px",
-              letterSpacing: "-0.01em",
-            }}
-          >
-            Try Single Agent
-          </h2>
-          <p
-            style={{ color: "var(--text-3)", fontSize: 13, margin: "0 0 20px" }}
-          >
-            Enter a goal and the Writer agent will handle it in one step.
-          </p>
-          <div className="sa-runner-grid">
-            <div>
-              <textarea
-                className="sa-textarea"
-                placeholder="e.g. Explain the key differences between REST and GraphQL APIs..."
+        {/* ── Two-column: Input + Result ── */}
+        <div className="sa-layout">
+          {/* Left: Goal Input */}
+          <div className="rise-d2">
+            <div
+              className="glass-card-heavy glass-shine"
+              style={{ padding: 20 }}
+            >
+              <label
+                className="font-mono"
+                style={{
+                  color: "var(--text-3)",
+                  fontSize: 10,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  marginBottom: 10,
+                  display: "block",
+                }}
+              >
+                Your Goal
+              </label>
+
+              <TypingPlaceholder
+                suggestions={SUGGESTIONS}
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
+                onKeyDown={handleKeyDown}
                 disabled={isRunning}
+                rows={4}
               />
-              <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
-                <button
-                  className="sa-btn sa-btn-primary"
-                  onClick={handleRun}
-                  disabled={!goal.trim() || isRunning}
-                >
-                  {isRunning ? (
-                    <>
-                      <span className="typing-dots" style={{ color: "#000" }}>
-                        <span></span>
-                        <span></span>
-                        <span></span>
-                      </span>
-                      Writing...
-                    </>
-                  ) : (
-                    <>▶ Run Agent</>
-                  )}
-                </button>
-                {(isComplete || isError) && (
-                  <button className="sa-btn sa-btn-ghost" onClick={handleReset}>
-                    ↻ Reset
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  marginTop: 14,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                {!isComplete && !isError && (
+                  <button
+                    onClick={handleRun}
+                    disabled={!goal.trim() || isRunning}
+                    className={
+                      goal.trim() && !isRunning ? "btn-press btn-neon" : ""
+                    }
+                    style={{
+                      padding: "10px 24px",
+                      borderRadius: "var(--r-sm)",
+                      fontSize: "13px",
+                      fontWeight: 700,
+                      color:
+                        goal.trim() && !isRunning ? "#fff" : "var(--text-3)",
+                      background:
+                        goal.trim() && !isRunning
+                          ? "var(--grad-primary)"
+                          : "var(--bg-muted)",
+                      border: "none",
+                      cursor:
+                        goal.trim() && !isRunning ? "pointer" : "not-allowed",
+                      transition: "all 0.25s ease",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    {isRunning ? (
+                      <>
+                        <span className="typing-dots" style={{ color: "#fff" }}>
+                          <span></span>
+                          <span></span>
+                          <span></span>
+                        </span>
+                        Writing...
+                      </>
+                    ) : (
+                      "Run Agent →"
+                    )}
                   </button>
                 )}
+                {(isComplete || isError) && (
+                  <button
+                    onClick={handleReset}
+                    className="btn-press btn-glass"
+                    style={{
+                      padding: "10px 24px",
+                      borderRadius: "var(--r-sm)",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ↻ New Task
+                  </button>
+                )}
+                {!isRunning && goal.trim() && (
+                  <span
+                    className="font-mono"
+                    style={{
+                      color: "var(--text-4)",
+                      fontSize: "10px",
+                      padding: "3px 8px",
+                      borderRadius: "var(--r-sm)",
+                      background: "var(--bg-subtle)",
+                      border: "1px solid var(--border-0)",
+                    }}
+                  >
+                    ⌘ + Enter
+                  </span>
+                )}
               </div>
+
+              {/* Mini log */}
               {logs.length > 0 && (
                 <div
                   style={{
@@ -319,7 +381,7 @@ export default function SingleAgent() {
                     background: "var(--bg-card)",
                     borderRadius: "var(--r-sm)",
                     border: "1px solid var(--border-0)",
-                    maxHeight: 160,
+                    maxHeight: 140,
                     overflowY: "auto",
                     scrollbarWidth: "thin",
                     scrollbarColor: "rgba(255,255,255,0.06) transparent",
@@ -332,14 +394,14 @@ export default function SingleAgent() {
                       style={{
                         fontSize: 12,
                         color: "var(--text-3)",
-                        fontFamily: "monospace",
+                        fontFamily: '"JetBrains Mono", monospace',
                         lineHeight: 1.7,
                         animationDelay: `${Math.min(i * 0.03, 0.2)}s`,
                       }}
                     >
                       <span
                         style={{
-                          color: "var(--neon)",
+                          color: "var(--red)",
                           marginRight: 6,
                           fontWeight: 700,
                         }}
@@ -352,200 +414,207 @@ export default function SingleAgent() {
                 </div>
               )}
             </div>
-            <div>
-              {status === "idle" && (
+          </div>
+
+          {/* Right: Result */}
+          <div className="rise-d3">
+            {status === "idle" && (
+              <div
+                className="glass-card-heavy glass-shine"
+                style={{
+                  minHeight: 220,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 40,
+                }}
+              >
                 <div
                   style={{
-                    height: "100%",
-                    minHeight: 180,
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: "var(--bg-card)",
-                    borderRadius: "var(--r-md)",
-                    border: "1px solid var(--border-0)",
+                    fontSize: "28px",
+                    marginBottom: "10px",
+                    opacity: 0.2,
                   }}
                 >
+                  ✍️
+                </div>
+                <p
+                  className="font-mono"
+                  style={{
+                    color: "var(--text-4)",
+                    fontSize: 10,
+                    textAlign: "center",
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Agent output will appear here
+                </p>
+              </div>
+            )}
+
+            {isRunning && (
+              <div
+                className="shimmer-active glass-card-heavy"
+                style={{
+                  minHeight: 220,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  position: "relative",
+                  overflow: "hidden",
+                  border: "1px solid var(--red-border)",
+                }}
+              >
+                <div style={{ textAlign: "center" }}>
                   <div
-                    style={{
-                      fontSize: "24px",
-                      marginBottom: "8px",
-                      opacity: 0.25,
-                    }}
+                    className="breathe"
+                    style={{ fontSize: 28, marginBottom: 10 }}
                   >
                     ✍️
                   </div>
                   <p
+                    className="font-mono"
                     style={{
-                      color: "var(--text-4)",
-                      fontSize: 13,
-                      textAlign: "center",
-                      padding: 20,
+                      color: "var(--text-3)",
+                      fontSize: 11,
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
                     }}
                   >
-                    Agent output will appear here
+                    Writer agent processing...
                   </p>
-                </div>
-              )}
-              {isRunning && (
-                <div
-                  className="shimmer-active"
-                  style={{
-                    height: "100%",
-                    minHeight: 180,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: "var(--bg-card)",
-                    borderRadius: "var(--r-md)",
-                    border: "1px solid var(--neon-border)",
-                    position: "relative",
-                    overflow: "hidden",
-                  }}
-                >
-                  <div style={{ textAlign: "center" }}>
-                    <div
-                      className="breathe"
-                      style={{ fontSize: 28, marginBottom: 10 }}
-                    >
-                      ✍️
-                    </div>
-                    <p style={{ color: "var(--text-3)", fontSize: 13 }}>
-                      Writer agent is thinking...
-                    </p>
-                    <div
-                      className="typing-dots"
-                      style={{
-                        color: "var(--neon)",
-                        justifyContent: "center",
-                        marginTop: "8px",
-                      }}
-                    >
-                      <span></span>
-                      <span></span>
-                      <span></span>
-                    </div>
+                  <div
+                    className="typing-dots"
+                    style={{
+                      color: "var(--red)",
+                      justifyContent: "center",
+                      marginTop: "8px",
+                    }}
+                  >
+                    <span></span>
+                    <span></span>
+                    <span></span>
                   </div>
                 </div>
-              )}
-              {isError && (
-                <div
-                  className="sa-fade-in"
+              </div>
+            )}
+
+            {isError && (
+              <div
+                style={{
+                  padding: 20,
+                  background: "var(--rose-soft)",
+                  borderRadius: "var(--r-md)",
+                  border: "1px solid rgba(239,68,68,0.3)",
+                }}
+              >
+                <p
                   style={{
-                    padding: 20,
-                    background: "var(--rose-soft)",
-                    borderRadius: "var(--r-md)",
-                    border: "1px solid var(--rose)",
+                    color: "var(--rose)",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    margin: "0 0 4px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
                   }}
                 >
-                  <p
+                  <span>⚠️</span> Something went wrong
+                </p>
+                <p style={{ color: "var(--text-2)", fontSize: 13, margin: 0 }}>
+                  Please try again or check the console.
+                </p>
+              </div>
+            )}
+
+            {isComplete && result && (
+              <div
+                className="glass-card-heavy hud-corners"
+                style={{ position: "relative", overflow: "hidden" }}
+              >
+                <div
+                  className="hud-corners-bottom"
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    pointerEvents: "none",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: "2px",
+                    background: "linear-gradient(90deg, #dc2626, #f59e0b)",
+                    opacity: 0.4,
+                  }}
+                />
+                {stats && (
+                  <div
                     style={{
-                      color: "var(--rose)",
-                      fontSize: 14,
-                      fontWeight: 600,
-                      margin: "0 0 4px",
                       display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
+                      gap: 10,
+                      padding: "14px 18px",
+                      borderBottom: "1px solid var(--border-0)",
+                      flexWrap: "wrap",
                     }}
                   >
-                    <span>⚠️</span> Something went wrong
-                  </p>
-                  <p
-                    style={{ color: "var(--text-2)", fontSize: 13, margin: 0 }}
-                  >
-                    The agent encountered an error. Try again or check the
-                    console.
-                  </p>
-                </div>
-              )}
-              {isComplete && result && (
+                    {stats.time > 0 && (
+                      <span
+                        className="font-mono"
+                        style={{
+                          fontSize: 10,
+                          color: "var(--text-3)",
+                          padding: "2px 8px",
+                          borderRadius: "var(--r-full)",
+                          background: "var(--bg-subtle)",
+                          border: "1px solid var(--border-0)",
+                          fontWeight: 500,
+                        }}
+                      >
+                        ⏱ {stats.time}s
+                      </span>
+                    )}
+                    {stats.tools > 0 && (
+                      <span
+                        className="font-mono"
+                        style={{
+                          fontSize: 10,
+                          color: "var(--text-3)",
+                          padding: "2px 8px",
+                          borderRadius: "var(--r-full)",
+                          background: "var(--bg-subtle)",
+                          border: "1px solid var(--border-0)",
+                          fontWeight: 500,
+                        }}
+                      >
+                        🔧 {stats.tools} tool{stats.tools > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                )}
                 <div
-                  className="sa-fade-in"
                   style={{
-                    background: "var(--bg-card)",
-                    borderRadius: "var(--r-md)",
-                    border: "1px solid var(--border-1)",
-                    padding: 20,
-                    maxHeight: 500,
+                    padding: 18,
+                    maxHeight: 400,
                     overflowY: "auto",
+                    color: "var(--text-1)",
+                    fontSize: 13,
+                    lineHeight: 1.75,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
                     scrollbarWidth: "thin",
                     scrollbarColor: "rgba(255,255,255,0.06) transparent",
                   }}
                 >
-                  {stats && (
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: 12,
-                        marginBottom: 14,
-                        paddingBottom: 14,
-                        borderBottom: "1px solid var(--border-0)",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      {stats.time > 0 && (
-                        <span
-                          style={{
-                            fontSize: 11,
-                            color: "var(--text-3)",
-                            padding: "2px 8px",
-                            borderRadius: "var(--r-full)",
-                            background: "var(--bg-subtle)",
-                            border: "1px solid var(--border-0)",
-                            fontWeight: 500,
-                          }}
-                        >
-                          ⏱ {stats.time}s
-                        </span>
-                      )}
-                      {stats.tools > 0 && (
-                        <span
-                          style={{
-                            fontSize: 11,
-                            color: "var(--text-3)",
-                            padding: "2px 8px",
-                            borderRadius: "var(--r-full)",
-                            background: "var(--bg-subtle)",
-                            border: "1px solid var(--border-0)",
-                            fontWeight: 500,
-                          }}
-                        >
-                          🔧 {stats.tools} tool call{stats.tools > 1 ? "s" : ""}
-                        </span>
-                      )}
-                      {stats.steps > 0 && (
-                        <span
-                          style={{
-                            fontSize: 11,
-                            color: "var(--text-3)",
-                            padding: "2px 8px",
-                            borderRadius: "var(--r-full)",
-                            background: "var(--bg-subtle)",
-                            border: "1px solid var(--border-0)",
-                            fontWeight: 500,
-                          }}
-                        >
-                          📋 {stats.steps} step{stats.steps > 1 ? "s" : ""}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  <div
-                    style={{
-                      color: "var(--text-1)",
-                      fontSize: 13,
-                      lineHeight: 1.75,
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {result}
-                  </div>
+                  {result}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

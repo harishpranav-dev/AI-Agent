@@ -1,6 +1,6 @@
 /**
  * module: StatsDashboard.jsx
- * purpose: Performance dashboard showing aggregate stats across all completed agent runs.
+ * purpose: Session performance stats strip — Iron HUD theme.
  * author: HP & Mushan
  */
 
@@ -34,158 +34,70 @@ export default function StatsDashboard() {
   if (loading || !stats || stats.total_tasks === 0) return null;
 
   const metrics = [
-    {
-      label: "Total Tasks",
-      value: stats.total_tasks,
-      icon: "📊",
-      accentColor: "var(--neon)",
-    },
+    { label: "Total Missions", value: stats.total_tasks, color: "var(--red)" },
     {
       label: "Avg Time",
       value: `${stats.avg_time_seconds}s`,
-      icon: "⏱️",
-      accentColor: "var(--purple)",
+      color: "var(--gold)",
     },
     {
       label: "Tools Called",
       value: stats.total_tools_called,
-      icon: "🔧",
-      accentColor: "var(--amber)",
+      color: "var(--gold)",
     },
-    {
-      label: "Multi-Agent",
-      value: stats.multi_agent_runs,
-      icon: "🤖",
-      accentColor: "#7B61FF",
-    },
-    {
-      label: "Single-Agent",
-      value: stats.single_agent_runs,
-      icon: "⚡",
-      accentColor: "#00ffaa",
-    },
+    { label: "Multi-Agent", value: stats.multi_agent_runs, color: "#dc2626" },
+    { label: "Single-Agent", value: stats.single_agent_runs, color: "#ef4444" },
   ];
 
   return (
-    <div className="fade-up" style={{ marginBottom: "24px" }}>
+    <div className="rise" style={{ marginBottom: "24px" }}>
       <div
+        className="font-mono"
         style={{
           display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          marginBottom: "12px",
+          flexWrap: "wrap",
+          gap: "0",
+          borderRadius: "var(--r-md)",
+          overflow: "hidden",
+          border: "1px solid var(--border-1)",
+          background: "var(--border-1)",
         }}
       >
-        <div
-          style={{
-            width: "6px",
-            height: "6px",
-            borderRadius: "2px",
-            background: "var(--emerald)",
-            boxShadow: "0 0 8px var(--emerald)",
-          }}
-        />
-        <p
-          style={{
-            fontSize: "11px",
-            fontWeight: 600,
-            color: "var(--text-4)",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            margin: 0,
-          }}
-        >
-          Session Performance
-        </p>
-        <div
-          style={{
-            flex: 1,
-            height: "1px",
-            background: "linear-gradient(90deg, var(--border-1), transparent)",
-          }}
-        />
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
-          gap: "10px",
-        }}
-      >
-        {metrics.map((metric) => (
+        {metrics.map((m, i) => (
           <div
-            key={metric.label}
-            className="shimmer-on-hover glass-shine"
+            key={m.label}
             style={{
-              background: "rgba(6,6,8,0.65)",
-              backdropFilter: "blur(16px)",
-              border: "1px solid var(--border-1)",
-              borderRadius: "var(--r-md)",
-              padding: "16px 20px",
-              transition: "all 0.3s cubic-bezier(0.16, 1, 0.3, 1)",
-              position: "relative",
-              overflow: "hidden",
-              cursor: "default",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "var(--border-2)";
-              e.currentTarget.style.transform = "translateY(-3px)";
-              e.currentTarget.style.boxShadow = "var(--shadow-float)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "var(--border-1)";
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "none";
+              flex: "1 1 0",
+              minWidth: "100px",
+              background: "rgba(8,8,8,0.9)",
+              padding: "12px 16px",
+              textAlign: "center",
+              borderRight:
+                i < metrics.length - 1 ? "1px solid var(--border-1)" : "none",
             }}
           >
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                marginBottom: "8px",
+                fontSize: "9px",
+                color: "var(--text-4)",
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+                marginBottom: "4px",
+                fontWeight: 600,
               }}
             >
-              <span style={{ fontSize: "13px" }}>{metric.icon}</span>
-              <p
-                style={{
-                  fontSize: "10px",
-                  fontWeight: 600,
-                  color: "var(--text-4)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                  margin: 0,
-                }}
-              >
-                {metric.label}
-              </p>
+              {m.label}
             </div>
-            <p
-              className="font-display"
+            <div
               style={{
-                fontSize: "28px",
-                fontWeight: 800,
-                color: "var(--text-0)",
-                letterSpacing: "-0.03em",
-                margin: 0,
+                fontSize: "18px",
+                fontWeight: 700,
+                color: m.color,
                 fontVariantNumeric: "tabular-nums",
               }}
             >
-              {metric.value}
-            </p>
-            <div
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: "10%",
-                right: "10%",
-                height: "2px",
-                background: metric.accentColor,
-                opacity: 0.12,
-                borderRadius: "2px",
-              }}
-            />
+              {m.value}
+            </div>
           </div>
         ))}
       </div>

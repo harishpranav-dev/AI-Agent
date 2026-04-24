@@ -1,7 +1,8 @@
 /**
  * module: Navbar.jsx
- * purpose: Sticky frosted navbar — desktop pill tabs + mobile hamburger.
- *          Fully responsive. Glass morphism on dark with neon accents.
+ * purpose: HUD-style sticky navbar with targeting reticle corners,
+ *          red/gold accent system, desktop tabs + mobile hamburger.
+ * author: HP & Mushan
  */
 
 import { Link, useLocation } from "react-router-dom";
@@ -21,17 +22,18 @@ export default function Navbar() {
   return (
     <>
       <nav
+        className="hud-corners"
         style={{
           position: "sticky",
           top: 0,
           zIndex: 100,
-          background: "rgba(0, 0, 0, 0.55)",
+          background: "rgba(0, 0, 0, 0.7)",
           backdropFilter: "saturate(180%) blur(28px)",
           WebkitBackdropFilter: "saturate(180%) blur(28px)",
-          borderBottom: "1px solid rgba(255,255,255,0.04)",
+          borderBottom: "1px solid rgba(220, 38, 38, 0.1)",
         }}
       >
-        {/* Top neon shine */}
+        {/* Top red shine */}
         <div
           style={{
             position: "absolute",
@@ -40,9 +42,15 @@ export default function Navbar() {
             right: "3%",
             height: "1px",
             background:
-              "linear-gradient(90deg, transparent, rgba(0,212,255,0.2), rgba(123,97,255,0.15), rgba(0,212,255,0.1), transparent)",
+              "linear-gradient(90deg, transparent, rgba(220,38,38,0.25), rgba(245,158,11,0.15), rgba(220,38,38,0.15), transparent)",
             pointerEvents: "none",
           }}
+        />
+
+        {/* Bottom corners pseudo */}
+        <div
+          className="hud-corners-bottom"
+          style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
         />
 
         <div
@@ -64,24 +72,24 @@ export default function Navbar() {
               style={{
                 width: "32px",
                 height: "32px",
-                borderRadius: "9px",
-                background: "var(--grad-neon)",
+                borderRadius: "6px",
+                background: "var(--grad-primary)",
                 backgroundSize: "200% 200%",
                 animation: "gradient-flow 4s ease infinite",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 boxShadow:
-                  "0 2px 20px rgba(0,212,255,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+                  "0 2px 20px rgba(220,38,38,0.3), inset 0 1px 0 rgba(255,255,255,0.15)",
               }}
             >
               <span
+                className="font-mono"
                 style={{
-                  color: "#000",
-                  fontSize: "12px",
-                  fontWeight: 900,
+                  color: "#fff",
+                  fontSize: "11px",
+                  fontWeight: 700,
                   letterSpacing: "-0.03em",
-                  fontFamily: "Outfit, Inter, sans-serif",
                 }}
               >
                 AI
@@ -96,7 +104,7 @@ export default function Navbar() {
                 letterSpacing: "-0.02em",
               }}
             >
-              General-Agent
+              General Agent
             </span>
           </Link>
 
@@ -106,8 +114,8 @@ export default function Navbar() {
               display: "flex",
               gap: "2px",
               padding: "4px",
-              borderRadius: "12px",
-              background: "rgba(10,10,15,0.6)",
+              borderRadius: "10px",
+              background: "rgba(10,10,10,0.6)",
               backdropFilter: "blur(16px)",
               border: "1px solid var(--border-1)",
             }}
@@ -121,18 +129,16 @@ export default function Navbar() {
                   to={tab.path}
                   style={{
                     padding: "6px 16px",
-                    borderRadius: "8px",
+                    borderRadius: "7px",
                     fontSize: "13px",
                     fontWeight: active ? 600 : 400,
-                    color: active ? "var(--neon)" : "var(--text-3)",
-                    background: active ? "rgba(0,212,255,0.06)" : "transparent",
+                    color: active ? "var(--red)" : "var(--text-3)",
+                    background: active ? "var(--red-soft)" : "transparent",
                     border: active
-                      ? "1px solid rgba(0,212,255,0.15)"
+                      ? "1px solid var(--red-border)"
                       : "1px solid transparent",
                     transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
-                    boxShadow: active
-                      ? "0 0 12px rgba(0,212,255,0.08)"
-                      : "none",
+                    boxShadow: active ? "0 0 12px rgba(220,38,38,0.1)" : "none",
                   }}
                   onMouseEnter={(e) => {
                     if (!active) {
@@ -154,17 +160,17 @@ export default function Navbar() {
             })}
           </div>
 
-          {/* ── Status (desktop) ── */}
+          {/* ── System Status (desktop) ── */}
           <div
-            className="desktop-status"
+            className="desktop-status font-mono"
             style={{
               display: "flex",
               alignItems: "center",
               gap: "6px",
               padding: "4px 12px 4px 8px",
               borderRadius: "var(--r-full)",
-              background: "var(--emerald-soft)",
-              border: "1px solid var(--emerald-border)",
+              background: "rgba(34, 197, 94, 0.06)",
+              border: "1px solid rgba(34, 197, 94, 0.15)",
             }}
           >
             <div
@@ -173,19 +179,20 @@ export default function Navbar() {
                 height: "6px",
                 borderRadius: "50%",
                 background: "var(--emerald)",
-                boxShadow: "0 0 10px rgba(0,255,170,0.5)",
+                boxShadow: "0 0 10px rgba(34,197,94,0.5)",
                 animation: "glow-pulse 2s ease-in-out infinite",
               }}
             />
             <span
               style={{
-                fontSize: "11px",
+                fontSize: "10px",
                 fontWeight: 600,
                 color: "var(--emerald)",
-                letterSpacing: "0.03em",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
               }}
             >
-              Live
+              Systems Online
             </span>
           </div>
 
@@ -234,7 +241,7 @@ export default function Navbar() {
             position: "fixed",
             inset: 0,
             zIndex: 99,
-            background: "rgba(0,0,0,0.92)",
+            background: "rgba(0,0,0,0.95)",
             backdropFilter: "blur(28px)",
             WebkitBackdropFilter: "blur(28px)",
             display: "flex",
@@ -258,10 +265,10 @@ export default function Navbar() {
                   borderRadius: "var(--r-md)",
                   fontSize: "16px",
                   fontWeight: active ? 700 : 500,
-                  color: active ? "var(--neon)" : "var(--text-2)",
-                  background: active ? "var(--neon-soft)" : "transparent",
+                  color: active ? "var(--red)" : "var(--text-2)",
+                  background: active ? "var(--red-soft)" : "transparent",
                   border: active
-                    ? "1px solid var(--neon-border)"
+                    ? "1px solid var(--red-border)"
                     : "1px solid transparent",
                   transition: "all 0.2s ease",
                   width: "240px",
@@ -274,6 +281,7 @@ export default function Navbar() {
             );
           })}
           <div
+            className="font-mono"
             style={{
               display: "flex",
               alignItems: "center",
@@ -288,11 +296,18 @@ export default function Navbar() {
                 height: "6px",
                 borderRadius: "50%",
                 background: "var(--emerald)",
-                boxShadow: "0 0 10px rgba(0,255,170,0.5)",
+                boxShadow: "0 0 10px rgba(34,197,94,0.5)",
               }}
             />
-            <span style={{ fontSize: "12px", color: "var(--emerald)" }}>
-              System Live
+            <span
+              style={{
+                fontSize: "11px",
+                color: "var(--emerald)",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
+              }}
+            >
+              Systems Online
             </span>
           </div>
         </div>

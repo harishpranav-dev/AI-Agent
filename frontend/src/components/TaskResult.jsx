@@ -1,17 +1,11 @@
 /**
  * module: TaskResult.jsx
- * purpose: Displays the final markdown report produced by the Writer agent.
+ * purpose: Displays the final markdown report — Iron HUD theme.
  * author: HP & Mushan
  */
 
 import React, { useState } from "react";
 
-/**
- * Escape the five characters that have special meaning in HTML so user /
- * agent content can be safely interpolated into a template that will be
- * passed to dangerouslySetInnerHTML. This MUST be applied to any raw text
- * before it is wrapped in our markdown tags.
- */
 function escapeHtml(text) {
   return String(text)
     .replace(/&/g, "&amp;")
@@ -31,9 +25,9 @@ function simpleMarkdown(text) {
       if (line.startsWith("## "))
         return `<h2 style="color:var(--text-0);font-size:16px;font-weight:700;margin:20px 0 8px;">${escapeHtml(line.slice(3))}</h2>`;
       if (line.startsWith("# "))
-        return `<h1 style="color:var(--text-0);font-size:18px;font-weight:800;margin:20px 0 10px;">${escapeHtml(line.slice(2))}</h1>`;
+        return `<h1 style="color:var(--gold);font-size:18px;font-weight:800;margin:20px 0 10px;">${escapeHtml(line.slice(2))}</h1>`;
       if (line.startsWith("- ") || line.startsWith("* "))
-        return `<div style="display:flex;gap:8px;margin:3px 0;"><span style="color:var(--neon);">•</span><span>${escapeHtml(line.slice(2))}</span></div>`;
+        return `<div style="display:flex;gap:8px;margin:3px 0;"><span style="color:var(--red);">•</span><span>${escapeHtml(line.slice(2))}</span></div>`;
       if (line.trim() === "") return '<div style="height:8px;"></div>';
       return `<p style="margin:4px 0;line-height:1.65;">${escapeHtml(line)}</p>`;
     })
@@ -63,13 +57,19 @@ export default function TaskResult({ result }) {
         className="glass-card-heavy glass-shine"
         style={{ padding: "48px 24px", textAlign: "center" }}
       >
-        <div style={{ fontSize: "32px", marginBottom: "12px", opacity: 0.25 }}>
+        <div style={{ fontSize: "32px", marginBottom: "12px", opacity: 0.2 }}>
           📄
         </div>
         <p
-          style={{ color: "var(--text-4)", fontSize: "13px", lineHeight: 1.5 }}
+          className="font-mono"
+          style={{
+            color: "var(--text-4)",
+            fontSize: "11px",
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+          }}
         >
-          Agent report will appear here once complete
+          Agent report will appear here
         </p>
         <div
           style={{
@@ -86,9 +86,19 @@ export default function TaskResult({ result }) {
 
   return (
     <div
-      className="glass-card-heavy"
-      style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}
+      className="glass-card-heavy hud-corners"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+        position: "relative",
+      }}
     >
+      <div
+        className="hud-corners-bottom"
+        style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+      />
+
       <div
         style={{
           position: "relative",
@@ -99,6 +109,7 @@ export default function TaskResult({ result }) {
           borderBottom: "1px solid var(--border-0)",
         }}
       >
+        {/* Red→Gold gradient accent line */}
         <div
           style={{
             position: "absolute",
@@ -106,20 +117,20 @@ export default function TaskResult({ result }) {
             left: 0,
             right: 0,
             height: "2px",
-            background:
-              "linear-gradient(90deg, #7B61FF, #00D4FF, #00ffaa, #ffb800)",
+            background: "linear-gradient(90deg, #dc2626, #f59e0b, #ef4444)",
             opacity: 0.5,
             borderRadius: "2px 2px 0 0",
           }}
         />
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "14px" }}>📋</span>
           <span
-            className="font-display"
+            className="font-mono"
             style={{
-              color: "var(--text-1)",
-              fontSize: "13px",
+              color: "var(--red)",
+              fontSize: "10px",
               fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
             }}
           >
             Agent Report
@@ -127,12 +138,14 @@ export default function TaskResult({ result }) {
         </div>
         <button
           onClick={handleCopy}
-          className="btn-press"
+          className="btn-press font-mono"
           style={{
             padding: "5px 14px",
             borderRadius: "var(--r-sm)",
-            fontSize: "11px",
+            fontSize: "10px",
             fontWeight: 600,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
             color: copied ? "var(--emerald)" : "var(--text-2)",
             background: copied ? "var(--emerald-soft)" : "var(--bg-subtle)",
             border: `1px solid ${copied ? "var(--emerald-border)" : "var(--border-2)"}`,
@@ -143,13 +156,7 @@ export default function TaskResult({ result }) {
             gap: "5px",
           }}
         >
-          {copied ? (
-            <>
-              <span style={{ fontSize: "11px" }}>✓</span>Copied
-            </>
-          ) : (
-            "Copy"
-          )}
+          {copied ? "✓ Copied" : "Copy"}
         </button>
       </div>
       <div

@@ -1,16 +1,16 @@
 /**
  * module: LiveLog.jsx
- * purpose: Real-time scrolling log feed that displays agent events.
+ * purpose: Real-time scrolling log feed — Iron HUD theme.
  * author: HP & Mushan
  */
 
 import React, { useEffect, useRef } from "react";
 
 const DOT_COLORS = {
-  planner: "#7B61FF",
-  researcher: "#00ffaa",
-  writer: "#ffb800",
-  accent: "var(--neon)",
+  planner: "#dc2626",
+  researcher: "#f59e0b",
+  writer: "#ef4444",
+  accent: "var(--red)",
   emerald: "var(--emerald)",
   rose: "var(--rose)",
   default: "var(--text-4)",
@@ -25,14 +25,20 @@ export default function LiveLog({ logs }) {
 
   return (
     <div
-      className="glass-card-heavy glass-shine"
+      className="glass-card-heavy glass-shine hud-corners"
       style={{
         padding: "16px",
         display: "flex",
         flexDirection: "column",
         gap: "0",
+        position: "relative",
       }}
     >
+      <div
+        className="hud-corners-bottom"
+        style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+      />
+
       <div
         style={{
           display: "flex",
@@ -45,39 +51,41 @@ export default function LiveLog({ logs }) {
       >
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <div
+            className="font-mono"
             style={{
               width: "18px",
               height: "18px",
-              borderRadius: "5px",
-              background: "var(--neon-soft)",
-              border: "1px solid var(--neon-border)",
+              borderRadius: "4px",
+              background: "var(--red-soft)",
+              border: "1px solid var(--red-border)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: "9px",
-              color: "var(--neon)",
+              color: "var(--red)",
               fontWeight: 800,
-              fontFamily: "monospace",
             }}
           >
             {">"}
           </div>
           <span
-            className="font-display"
+            className="font-mono"
             style={{
-              color: "var(--text-1)",
-              fontSize: "13px",
-              fontWeight: 700,
-              letterSpacing: "-0.01em",
+              color: "var(--text-2)",
+              fontSize: "10px",
+              fontWeight: 600,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
             }}
           >
             Live Agent Log
           </span>
         </div>
         <span
+          className="font-mono"
           style={{
             color: "var(--text-4)",
-            fontSize: "11px",
+            fontSize: "10px",
             fontWeight: 500,
             fontVariantNumeric: "tabular-nums",
             padding: "2px 8px",
@@ -133,7 +141,7 @@ export default function LiveLog({ logs }) {
                 gap: "10px",
                 padding: "7px 10px",
                 borderRadius: "var(--r-sm)",
-                background: isLatest ? "rgba(0,212,255,0.03)" : "transparent",
+                background: isLatest ? "rgba(220,38,38,0.03)" : "transparent",
                 borderLeft: isLatest
                   ? `2px solid ${dotColor}`
                   : "2px solid transparent",
@@ -164,10 +172,10 @@ export default function LiveLog({ logs }) {
                 {log.message}
               </span>
               <span
+                className="font-mono"
                 style={{
                   color: "var(--text-4)",
                   fontSize: "10px",
-                  fontFamily: "monospace",
                   flexShrink: 0,
                   marginTop: "2px",
                   fontVariantNumeric: "tabular-nums",

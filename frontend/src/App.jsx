@@ -1,29 +1,41 @@
 /**
  * module: App.jsx
- * purpose: Root layout with animated background, router, navbar, footer.
+ * purpose: Root layout — intro splash, animated HUD background, router, navbar, footer.
+ * author: HP & Mushan
  */
 
+import { useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import IntroSplash from "./components/IntroSplash";
 import Home from "./pages/Home";
 import SingleAgent from "./pages/SingleAgent";
 import MultiAgent from "./pages/MultiAgent";
 import History from "./pages/History";
 
 export default function App() {
+  const [introComplete, setIntroComplete] = useState(false);
+
   return (
     <BrowserRouter>
+      {/* ── Cinematic Intro ── */}
+      {!introComplete && (
+        <IntroSplash onComplete={() => setIntroComplete(true)} />
+      )}
+
       <div
         style={{
           minHeight: "100vh",
           position: "relative",
           background: "var(--bg-base)",
+          opacity: introComplete ? 1 : 0,
+          transition: "opacity 0.5s ease",
         }}
       >
         {/* ── Animated grid background ── */}
         <div className="animated-grid" />
 
-        {/* ── Aurora light orbs (alive, not static) ── */}
+        {/* ── Red/Gold ambient orbs ── */}
         <div
           style={{
             position: "fixed",
@@ -33,7 +45,7 @@ export default function App() {
             overflow: "hidden",
           }}
         >
-          {/* Primary cyan orb — top center */}
+          {/* Primary red orb — top center */}
           <div
             style={{
               position: "absolute",
@@ -42,12 +54,12 @@ export default function App() {
               width: "800px",
               height: "600px",
               background:
-                "radial-gradient(ellipse, rgba(0,212,255,0.07) 0%, rgba(0,212,255,0.02) 40%, transparent 70%)",
+                "radial-gradient(ellipse, rgba(220,38,38,0.06) 0%, rgba(220,38,38,0.02) 40%, transparent 70%)",
               filter: "blur(60px)",
               animation: "orb-float-1 20s ease-in-out infinite",
             }}
           />
-          {/* Purple orb — bottom left */}
+          {/* Gold orb — bottom left */}
           <div
             style={{
               position: "absolute",
@@ -56,12 +68,12 @@ export default function App() {
               width: "500px",
               height: "500px",
               background:
-                "radial-gradient(circle, rgba(123,97,255,0.06) 0%, rgba(123,97,255,0.02) 40%, transparent 65%)",
+                "radial-gradient(circle, rgba(245,158,11,0.05) 0%, rgba(245,158,11,0.02) 40%, transparent 65%)",
               filter: "blur(50px)",
               animation: "orb-float-2 25s ease-in-out infinite",
             }}
           />
-          {/* Emerald orb — right side */}
+          {/* Red orb — right side */}
           <div
             style={{
               position: "absolute",
@@ -70,12 +82,12 @@ export default function App() {
               width: "400px",
               height: "400px",
               background:
-                "radial-gradient(circle, rgba(0,255,170,0.04) 0%, transparent 60%)",
+                "radial-gradient(circle, rgba(220,38,38,0.04) 0%, transparent 60%)",
               filter: "blur(50px)",
               animation: "orb-float-1 30s ease-in-out infinite reverse",
             }}
           />
-          {/* Subtle amber orb — mid */}
+          {/* Subtle gold orb — mid */}
           <div
             style={{
               position: "absolute",
@@ -84,7 +96,7 @@ export default function App() {
               width: "300px",
               height: "300px",
               background:
-                "radial-gradient(circle, rgba(255,184,0,0.025) 0%, transparent 60%)",
+                "radial-gradient(circle, rgba(245,158,11,0.025) 0%, transparent 60%)",
               filter: "blur(40px)",
               animation: "orb-float-2 18s ease-in-out infinite",
             }}
@@ -98,7 +110,7 @@ export default function App() {
             inset: 0,
             pointerEvents: "none",
             zIndex: 9999,
-            opacity: 0.018,
+            opacity: 0.015,
             backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
           }}
         />
@@ -126,7 +138,6 @@ export default function App() {
               position: "relative",
             }}
           >
-            {/* Neon divider */}
             <div
               style={{
                 position: "absolute",
@@ -135,17 +146,19 @@ export default function App() {
                 right: "10%",
                 height: "1px",
                 background:
-                  "linear-gradient(90deg, transparent, rgba(0,212,255,0.15), rgba(123,97,255,0.1), transparent)",
+                  "linear-gradient(90deg, transparent, rgba(220,38,38,0.15), rgba(245,158,11,0.1), transparent)",
               }}
             />
             <p
+              className="font-mono"
               style={{
-                fontSize: "11px",
+                fontSize: "10px",
                 color: "var(--text-4)",
-                letterSpacing: "0.05em",
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
               }}
             >
-              - Built by HARISHPRANAV R [24BSC022]
+              Built by HARISHPRANAV R [24BSC022]
             </p>
           </footer>
         </div>

@@ -11,7 +11,7 @@ author: HP & Mushan
 """
 
 import logging
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from db.mongo import get_database
 
@@ -139,4 +139,38 @@ async def get_session_stats(session_id: str):
 
     except Exception as e:
         logger.error(f"Stats fetch failed: {e}", exc_info=True)
-        return {"success": False, "error": "Failed to fetch stats"}
+        return {"success": False, "error": "Failed to fetch stats"}
+
+
+@router.delete("/api/history/{task_id}")
+async def delete_task(task_id: str):
+    """
+    Delete a single task from history by its task_id.
+
+    The frontend History page calls this when the user confirms
+    deletion in the modal detail view.
+
+    Args:
+        task_id: The UUID of the task to delete.
+
+    Returns:
+        Success confirmation or 404 if task not found.
+    """
+    database = get_database()
+    if database is None:
+        raise HTTPException(status_code=500, detail="Database not available")
+
+    try:
+        result = await database.tasks.delete_one({"task_id": task_id})
+
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail=f"Task {task_id} not found")
+
+        logger.info(f"DELETE /api/history/{task_id} — task deleted")
+        return {"success": True, "message": f"Task {task_id} deleted"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Task delete failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to delete task")

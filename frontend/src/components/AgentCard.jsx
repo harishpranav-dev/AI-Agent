@@ -1,6 +1,7 @@
 /**
  * module: AgentCard.jsx
  * purpose: Displays a single agent's status during a multi-agent run.
+ *          Iron HUD theme: red (planner), gold (researcher), crimson (writer).
  * author: HP & Mushan
  */
 
@@ -8,31 +9,31 @@ import React from "react";
 
 const AGENT_COLORS = {
   planner: {
-    color: "#7B61FF",
-    softBg: "rgba(123,97,255,0.06)",
-    border: "rgba(123,97,255,0.18)",
-    glowBorder: "rgba(123,97,255,0.45)",
-    glowShadow: "rgba(123,97,255,0.12)",
+    color: "#dc2626",
+    softBg: "rgba(220,38,38,0.06)",
+    border: "rgba(220,38,38,0.18)",
+    glowBorder: "rgba(220,38,38,0.45)",
+    glowShadow: "rgba(220,38,38,0.12)",
     icon: "🧠",
     label: "Planner",
     desc: "Breaks goals into subtasks",
   },
   researcher: {
-    color: "#00ffaa",
-    softBg: "rgba(0,255,170,0.06)",
-    border: "rgba(0,255,170,0.18)",
-    glowBorder: "rgba(0,255,170,0.45)",
-    glowShadow: "rgba(0,255,170,0.12)",
+    color: "#f59e0b",
+    softBg: "rgba(245,158,11,0.06)",
+    border: "rgba(245,158,11,0.18)",
+    glowBorder: "rgba(245,158,11,0.45)",
+    glowShadow: "rgba(245,158,11,0.12)",
     icon: "🔍",
     label: "Researcher",
     desc: "Searches & gathers data",
   },
   writer: {
-    color: "#ffb800",
-    softBg: "rgba(255,184,0,0.06)",
-    border: "rgba(255,184,0,0.18)",
-    glowBorder: "rgba(255,184,0,0.45)",
-    glowShadow: "rgba(255,184,0,0.12)",
+    color: "#ef4444",
+    softBg: "rgba(239,68,68,0.06)",
+    border: "rgba(239,68,68,0.18)",
+    glowBorder: "rgba(239,68,68,0.45)",
+    glowShadow: "rgba(239,68,68,0.12)",
     icon: "✍️",
     label: "Writer",
     desc: "Produces the final report",
@@ -136,12 +137,13 @@ export default function AgentCard({ role, state }) {
         </div>
 
         <div
+          className="font-mono"
           style={{
             padding: "5px 12px",
             borderRadius: "var(--r-full)",
-            fontSize: "11px",
+            fontSize: "10px",
             fontWeight: 600,
-            letterSpacing: "0.03em",
+            letterSpacing: "0.05em",
             textTransform: "uppercase",
             flexShrink: 0,
             color: isThinking
@@ -169,7 +171,7 @@ export default function AgentCard({ role, state }) {
             </span>
           )}
           {isDone && <span style={{ fontSize: "10px" }}>✓</span>}
-          {isWaiting ? "Waiting" : isThinking ? "Active" : "Done"}
+          {isWaiting ? "Standby" : isThinking ? "Active" : "Done"}
         </div>
       </div>
     </>

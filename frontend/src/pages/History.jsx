@@ -1,10 +1,12 @@
 /**
  * module: History.jsx
- * purpose: Task history dashboard with split-view layout.
+ * purpose: Task history — vertical timeline mission log with modal detail.
+ *          Iron HUD theme with red/gold accents.
  * author: HP & Mushan
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { getSessionId } from "../utils/session";
 import axios from "axios";
 import StatsDashboard from "../components/StatsDashboard";
@@ -17,30 +19,46 @@ export default function History() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const fetchHistory = useCallback(async () => {
+    try {
+      setLoading(true);
+      const sessionId = getSessionId();
+      const response = await axios.get(`${API_URL}/api/history/${sessionId}`);
+      const taskList = response.data.tasks || response.data || [];
+      setTasks(taskList);
+    } catch (err) {
+      console.error("Failed to fetch history:", err);
+      setError("Failed to load mission archive");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        setLoading(true);
-        const sessionId = getSessionId();
-        const response = await axios.get(`${API_URL}/api/history/${sessionId}`);
-        const taskList = response.data.tasks || response.data || [];
-        setTasks(taskList);
-        if (taskList.length > 0) setSelected(taskList[0]);
-      } catch (err) {
-        console.error("Failed to fetch history:", err);
-        setError("Failed to load task history");
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchHistory();
-  }, []);
+  }, [fetchHistory]);
 
   const handleExport = (taskId) => {
     setExporting(true);
     window.open(`${API_URL}/api/export/pdf/${taskId}`, "_blank");
     setTimeout(() => setExporting(false), 2000);
+  };
+
+  const handleDelete = async (taskId) => {
+    try {
+      setDeleting(true);
+      await axios.delete(`${API_URL}/api/history/${taskId}`);
+      setTasks((prev) => prev.filter((t) => t.task_id !== taskId));
+      setSelected(null);
+      setConfirmDelete(null);
+    } catch (err) {
+      console.error("Delete failed:", err);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const formatDate = (dateStr) => {
@@ -51,11 +69,21 @@ export default function History() {
         month: "short",
         day: "numeric",
         year: "numeric",
+      });
+    } catch {
+      return dateStr.slice(0, 10);
+    }
+  };
+
+  const formatTime = (dateStr) => {
+    if (!dateStr) return "";
+    try {
+      return new Date(dateStr).toLocaleTimeString("en-US", {
         hour: "2-digit",
         minute: "2-digit",
       });
     } catch {
-      return dateStr.slice(0, 10);
+      return "";
     }
   };
 
@@ -65,37 +93,43 @@ export default function History() {
       .replace(/#{1,3}\s/g, "")
       .replace(/\*\*(.*?)\*\*/g, "$1")
       .replace(/\*(.*?)\*/g, "$1")
-      .slice(0, 200);
+      .slice(0, 120);
   };
+
+  // Close modal on Escape
+  useEffect(() => {
+    const handleKey = (e) => {
+      if (e.key === "Escape") setSelected(null);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
 
   return (
     <>
       <style>{`
-        .history-layout { display: grid; grid-template-columns: 340px 1fr; gap: 24px; min-height: calc(100vh - 120px); }
-        .history-detail-report h1 { font-size: clamp(18px, 3vw, 22px); font-weight: 700; color: var(--neon); margin-bottom: 8px; }
-        .history-detail-report h2 { font-size: clamp(15px, 2.5vw, 18px); font-weight: 600; color: var(--text-0); margin-top: 20px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border-1); }
-        .history-detail-report h3 { font-size: clamp(13px, 2vw, 15px); font-weight: 600; color: var(--text-1); margin-top: 14px; margin-bottom: 6px; }
-        .history-detail-report p { color: var(--text-2); line-height: 1.7; margin-bottom: 10px; font-size: 13px; }
-        .history-detail-report ul, .history-detail-report ol { padding-left: 20px; margin-bottom: 10px; }
-        .history-detail-report li { color: var(--text-2); line-height: 1.6; font-size: 13px; margin-bottom: 4px; }
-        .history-detail-report strong { color: var(--text-0); }
-        .history-task-item { transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); }
-        .history-task-item:hover { background: var(--bg-card-hover) !important; border-color: var(--border-2) !important; transform: translateX(3px); }
-        @media (max-width: 768px) { .history-layout { grid-template-columns: 1fr; gap: 16px; } .history-sidebar { max-height: 240px; overflow-y: auto; } }
-        @media (max-width: 480px) { .history-page-container { padding: 12px !important; } }
+        .timeline-entry { transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1); cursor: pointer; }
+        .timeline-entry:hover { transform: translateX(4px); }
+        .timeline-entry:hover .tl-card { border-color: var(--red-border) !important; background: rgba(220,38,38,0.03) !important; }
+        .modal-backdrop { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; padding: 24px; animation: fade-in 0.25s ease; }
+        .modal-content { width: 100%; max-width: 700px; max-height: 85vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.06) transparent; animation: rise 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+        .modal-report h1 { font-size: 18px; font-weight: 700; color: var(--gold); margin-bottom: 8px; }
+        .modal-report h2 { font-size: 16px; font-weight: 600; color: var(--text-0); margin-top: 20px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border-1); }
+        .modal-report h3 { font-size: 14px; font-weight: 600; color: var(--text-1); margin-top: 14px; margin-bottom: 6px; }
+        .modal-report p { color: var(--text-2); line-height: 1.7; margin-bottom: 10px; font-size: 13px; }
+        .modal-report ul, .modal-report ol { padding-left: 20px; margin-bottom: 10px; }
+        .modal-report li { color: var(--text-2); line-height: 1.6; font-size: 13px; margin-bottom: 4px; }
+        .modal-report strong { color: var(--text-0); }
+        .modal-report a { color: var(--red); text-decoration: underline; }
+        @media (max-width: 640px) { .modal-content { max-height: 90vh; } }
       `}</style>
 
-      <div
-        className="history-page-container"
-        style={{
-          padding: "clamp(16px, 4vw, 32px)",
-          maxWidth: "1200px",
-          margin: "0 auto",
-        }}
-      >
+      <div style={{ maxWidth: "800px", margin: "0 auto", padding: "0 0 64px" }}>
+        {/* Stats strip */}
         <StatsDashboard />
 
-        <div className="rise" style={{ marginBottom: "24px" }}>
+        {/* Header */}
+        <div className="rise" style={{ marginBottom: "32px" }}>
           <div
             style={{
               display: "flex",
@@ -109,17 +143,18 @@ export default function History() {
                 width: "6px",
                 height: "6px",
                 borderRadius: "2px",
-                background: "var(--amber)",
-                boxShadow: "0 0 8px var(--amber)",
+                background: "var(--red)",
+                boxShadow: "0 0 8px var(--red)",
               }}
             />
             <span
+              className="font-mono"
               style={{
-                fontSize: "11px",
-                fontWeight: 700,
-                color: "var(--text-4)",
+                color: "var(--red)",
+                fontSize: "10px",
+                fontWeight: 600,
+                letterSpacing: "0.08em",
                 textTransform: "uppercase",
-                letterSpacing: "0.1em",
               }}
             >
               Session History
@@ -128,53 +163,53 @@ export default function History() {
           <h1
             className="font-display"
             style={{
-              fontSize: "clamp(22px, 4vw, 28px)",
+              fontSize: "clamp(24px, 4vw, 30px)",
               fontWeight: 800,
               color: "var(--text-0)",
               margin: 0,
               letterSpacing: "-0.03em",
             }}
           >
-            Task History
+            Mission Archive
           </h1>
           <p
             style={{
               color: "var(--text-3)",
-              fontSize: "13px",
+              fontSize: "14px",
               marginTop: "6px",
             }}
           >
-            All completed agent runs from this session
+            All completed agent operations
           </p>
         </div>
 
+        {/* Loading */}
         {loading && (
           <div
             style={{
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              justifyContent: "center",
               padding: "80px 0",
               gap: "14px",
             }}
           >
-            <div
-              className="spin-slow"
+            <div className="hud-spinner" />
+            <span
+              className="font-mono"
               style={{
-                width: "32px",
-                height: "32px",
-                border: "3px solid var(--border-2)",
-                borderTopColor: "var(--neon)",
-                borderRadius: "50%",
+                color: "var(--text-3)",
+                fontSize: "11px",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
               }}
-            />
-            <span style={{ color: "var(--text-3)", fontSize: "13px" }}>
-              Loading history...
+            >
+              Loading mission archive...
             </span>
           </div>
         )}
 
+        {/* Error */}
         {error && !loading && (
           <div
             className="fade-up"
@@ -182,7 +217,7 @@ export default function History() {
               padding: "20px",
               borderRadius: "var(--r-md)",
               background: "var(--rose-soft)",
-              border: "1px solid var(--rose)",
+              border: "1px solid rgba(239,68,68,0.25)",
               color: "var(--rose)",
               fontSize: "13px",
               display: "flex",
@@ -190,446 +225,660 @@ export default function History() {
               gap: "8px",
             }}
           >
-            <span>⚠️</span>
-            {error}
+            <span>⚠️</span> {error}
           </div>
         )}
 
+        {/* Empty state */}
         {!loading && !error && tasks.length === 0 && (
           <div
-            className="glass-card-heavy glass-shine fade-up"
-            style={{ padding: "60px 24px", textAlign: "center" }}
+            className="glass-card-heavy glass-shine fade-up hud-corners"
+            style={{
+              padding: "60px 24px",
+              textAlign: "center",
+              position: "relative",
+            }}
           >
             <div
-              style={{ fontSize: "36px", marginBottom: "14px", opacity: 0.25 }}
+              className="hud-corners-bottom"
+              style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
+            />
+            <div
+              style={{ fontSize: "32px", marginBottom: "14px", opacity: 0.2 }}
             >
               📭
             </div>
             <p
+              className="font-display"
               style={{
                 color: "var(--text-2)",
-                fontSize: "15px",
-                fontWeight: 600,
+                fontSize: "16px",
+                fontWeight: 700,
                 marginBottom: "6px",
               }}
             >
-              No tasks yet
+              No missions logged
             </p>
             <p
               style={{
                 color: "var(--text-4)",
                 fontSize: "13px",
-                maxWidth: "320px",
+                maxWidth: "300px",
                 margin: "0 auto",
                 lineHeight: 1.5,
               }}
             >
-              Run your first agent task from the Single or Multi Agent page.
+              Run your first agent task to see it here
             </p>
-            <div
+            <Link
+              to="/multi"
+              className="btn-press btn-neon"
               style={{
-                width: "40px",
-                height: "2px",
-                borderRadius: "2px",
-                background: "var(--border-1)",
-                margin: "16px auto 0",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                marginTop: "24px",
+                padding: "10px 24px",
+                borderRadius: "var(--r-sm)",
+                fontSize: "13px",
+                fontWeight: 700,
               }}
-            />
+            >
+              Launch Multi-Agent →
+            </Link>
           </div>
         )}
 
+        {/* ── TIMELINE ── */}
         {!loading && !error && tasks.length > 0 && (
-          <div className="history-layout fade-up">
+          <div style={{ position: "relative", paddingLeft: "32px" }}>
+            {/* Vertical timeline line */}
             <div
-              className="history-sidebar"
-              style={{ display: "flex", flexDirection: "column", gap: "8px" }}
-            >
-              {tasks.map((task) => {
-                const isSelected = selected?.task_id === task.task_id;
-                return (
+              style={{
+                position: "absolute",
+                left: "7px",
+                top: "8px",
+                bottom: "8px",
+                width: "2px",
+                background:
+                  "linear-gradient(180deg, rgba(220,38,38,0.4), rgba(245,158,11,0.3), rgba(220,38,38,0.1))",
+                borderRadius: "2px",
+              }}
+            />
+
+            {tasks.map((task, i) => (
+              <div
+                key={task.task_id}
+                className="timeline-entry"
+                style={{
+                  marginBottom: i < tasks.length - 1 ? "16px" : "0",
+                  position: "relative",
+                  animation: `rise 0.5s cubic-bezier(0.16,1,0.3,1) ${i * 0.06}s both`,
+                }}
+                onClick={() => setSelected(task)}
+              >
+                {/* Timeline dot */}
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "-29px",
+                    top: "18px",
+                    width: "10px",
+                    height: "10px",
+                    borderRadius: "50%",
+                    background:
+                      task.status === "complete"
+                        ? "var(--red)"
+                        : task.status === "running"
+                          ? "var(--gold)"
+                          : "var(--text-4)",
+                    border: "2px solid var(--bg-base)",
+                    boxShadow:
+                      task.status === "complete"
+                        ? "0 0 8px rgba(220,38,38,0.4)"
+                        : "none",
+                    zIndex: 2,
+                  }}
+                />
+
+                {/* Card */}
+                <div
+                  className="tl-card"
+                  style={{
+                    padding: "16px 18px",
+                    borderRadius: "var(--r-md)",
+                    background: "rgba(8,8,8,0.7)",
+                    backdropFilter: "blur(16px)",
+                    border: "1px solid var(--border-1)",
+                    transition: "all 0.25s ease",
+                  }}
+                >
+                  {/* Top meta row */}
                   <div
-                    key={task.task_id}
-                    className="history-task-item shimmer-on-hover"
-                    onClick={() => setSelected(task)}
                     style={{
-                      padding: "14px 16px",
-                      borderRadius: "var(--r-md)",
-                      background: isSelected
-                        ? "rgba(0,212,255,0.04)"
-                        : "rgba(6,6,8,0.65)",
-                      backdropFilter: "blur(16px)",
-                      border: `1.5px solid ${isSelected ? "var(--neon-border)" : "var(--border-1)"}`,
-                      cursor: "pointer",
-                      position: "relative",
-                      overflow: "hidden",
-                      boxShadow: isSelected ? "var(--neon-glow)" : "none",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginBottom: "8px",
+                      flexWrap: "wrap",
                     }}
                   >
-                    {isSelected && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          left: 0,
-                          top: "15%",
-                          bottom: "15%",
-                          width: "3px",
-                          borderRadius: "0 2px 2px 0",
-                          background: "var(--neon)",
-                          boxShadow: "0 0 10px var(--neon)",
-                        }}
-                      />
-                    )}
-                    <div
+                    {/* Timestamp */}
+                    <span
+                      className="font-mono"
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        marginBottom: "6px",
+                        fontSize: "10px",
+                        color: "var(--text-4)",
+                        fontVariantNumeric: "tabular-nums",
                       }}
                     >
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          fontWeight: 700,
-                          textTransform: "uppercase",
-                          letterSpacing: "0.06em",
-                          padding: "2px 7px",
-                          borderRadius: "var(--r-full)",
-                          color:
-                            task.mode === "multi"
-                              ? "var(--purple)"
-                              : "var(--neon)",
-                          background:
-                            task.mode === "multi"
-                              ? "var(--purple-soft)"
-                              : "var(--neon-soft)",
-                          border: `1px solid ${task.mode === "multi" ? "var(--purple-border)" : "var(--neon-border)"}`,
-                        }}
-                      >
-                        {task.mode}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          fontWeight: 600,
-                          color:
-                            task.status === "complete"
-                              ? "var(--emerald)"
-                              : task.status === "running"
-                                ? "var(--amber)"
-                                : "var(--rose)",
-                        }}
-                      >
-                        ● {task.status}
-                      </span>
-                    </div>
+                      {formatDate(task.created_at)} ·{" "}
+                      {formatTime(task.created_at)}
+                    </span>
+                    {/* Mode badge */}
+                    <span
+                      className="font-mono"
+                      style={{
+                        fontSize: "9px",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        padding: "2px 8px",
+                        borderRadius: "var(--r-full)",
+                        color:
+                          task.mode === "multi" ? "var(--gold)" : "var(--red)",
+                        background:
+                          task.mode === "multi"
+                            ? "var(--gold-soft)"
+                            : "var(--red-soft)",
+                        border: `1px solid ${task.mode === "multi" ? "var(--gold-border)" : "var(--red-border)"}`,
+                      }}
+                    >
+                      {task.mode}
+                    </span>
+                    {/* Status */}
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 600,
+                        color:
+                          task.status === "complete"
+                            ? "var(--emerald)"
+                            : task.status === "running"
+                              ? "var(--gold)"
+                              : "var(--rose)",
+                      }}
+                    >
+                      ● {task.status}
+                    </span>
+                  </div>
+
+                  {/* Goal */}
+                  <p
+                    style={{
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      color: "var(--text-0)",
+                      marginBottom: "6px",
+                      lineHeight: 1.4,
+                      display: "-webkit-box",
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: "vertical",
+                      overflow: "hidden",
+                    }}
+                  >
+                    {task.goal}
+                  </p>
+
+                  {/* Preview + stats */}
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "12px",
+                      flexWrap: "wrap",
+                    }}
+                  >
                     <p
                       style={{
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        color: isSelected ? "var(--text-0)" : "var(--text-1)",
-                        marginBottom: "4px",
+                        fontSize: "12px",
+                        color: "var(--text-4)",
                         lineHeight: 1.4,
+                        flex: 1,
+                        minWidth: 0,
                         display: "-webkit-box",
-                        WebkitLineClamp: 2,
+                        WebkitLineClamp: 1,
                         WebkitBoxOrient: "vertical",
                         overflow: "hidden",
                       }}
                     >
-                      {task.goal}
+                      {stripMarkdown(task.report)}
                     </p>
-                    <p
-                      style={{
-                        fontSize: "11px",
-                        color: "var(--text-4)",
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
-                      {formatDate(task.created_at)}
-                    </p>
+                    <div style={{ display: "flex", gap: "6px", flexShrink: 0 }}>
+                      {task.metadata?.total_time_seconds > 0 && (
+                        <span
+                          className="font-mono"
+                          style={{
+                            fontSize: "9px",
+                            color: "var(--text-4)",
+                            padding: "2px 6px",
+                            borderRadius: "var(--r-full)",
+                            background: "var(--bg-subtle)",
+                            border: "1px solid var(--border-0)",
+                          }}
+                        >
+                          {task.metadata.total_time_seconds}s
+                        </span>
+                      )}
+                      {task.metadata?.tools_called > 0 && (
+                        <span
+                          className="font-mono"
+                          style={{
+                            fontSize: "9px",
+                            color: "var(--text-4)",
+                            padding: "2px 6px",
+                            borderRadius: "var(--r-full)",
+                            background: "var(--bg-subtle)",
+                            border: "1px solid var(--border-0)",
+                          }}
+                        >
+                          {task.metadata.tools_called} tools
+                        </span>
+                      )}
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-
-            <div>
-              {!selected ? (
-                <div
-                  className="glass-card-heavy glass-shine"
-                  style={{ padding: "60px 24px", textAlign: "center" }}
-                >
-                  <p style={{ color: "var(--text-4)", fontSize: "13px" }}>
-                    Select a task to view details
-                  </p>
                 </div>
-              ) : (
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ══ DETAIL MODAL ══ */}
+        {selected && (
+          <div
+            className="modal-backdrop"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setSelected(null);
+            }}
+          >
+            <div
+              className="modal-content glass-card-heavy hud-corners"
+              style={{ position: "relative", overflow: "hidden" }}
+            >
+              <div
+                className="hud-corners-bottom"
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  pointerEvents: "none",
+                }}
+              />
+
+              {/* Red→Gold gradient top accent */}
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: "2px",
+                  background:
+                    "linear-gradient(90deg, #dc2626, #f59e0b, #ef4444)",
+                  opacity: 0.5,
+                }}
+              />
+
+              {/* Close button */}
+              <button
+                onClick={() => setSelected(null)}
+                className="btn-press"
+                style={{
+                  position: "absolute",
+                  top: "14px",
+                  right: "14px",
+                  zIndex: 5,
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "6px",
+                  background: "var(--bg-subtle)",
+                  border: "1px solid var(--border-2)",
+                  color: "var(--text-2)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "14px",
+                }}
+              >
+                ✕
+              </button>
+
+              <div style={{ padding: "24px" }}>
+                {/* Meta chips */}
                 <div
-                  className="glass-card-heavy"
                   style={{
-                    padding: "24px",
-                    position: "relative",
-                    overflow: "hidden",
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "8px",
+                    marginBottom: "14px",
                   }}
                 >
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: "2px",
-                      background:
-                        "linear-gradient(90deg, #7B61FF, #00D4FF, #00ffaa, #ffb800)",
-                      opacity: 0.4,
-                      borderRadius: "2px 2px 0 0",
-                    }}
+                  <MetaChip
+                    label="Mode"
+                    value={selected.mode}
+                    color={
+                      selected.mode === "multi" ? "var(--gold)" : "var(--red)"
+                    }
                   />
+                  <MetaChip
+                    label="Status"
+                    value={selected.status}
+                    color={
+                      selected.status === "complete"
+                        ? "var(--emerald)"
+                        : "var(--gold)"
+                    }
+                  />
+                  {selected.metadata?.total_time_seconds > 0 && (
+                    <MetaChip
+                      label="Time"
+                      value={`${selected.metadata.total_time_seconds}s`}
+                      color="var(--red)"
+                    />
+                  )}
+                  {selected.metadata?.tools_called > 0 && (
+                    <MetaChip
+                      label="Tools"
+                      value={selected.metadata.tools_called}
+                      color="var(--gold)"
+                    />
+                  )}
+                </div>
+
+                {/* Goal */}
+                <h2
+                  className="font-display"
+                  style={{
+                    fontSize: "clamp(16px, 3vw, 20px)",
+                    fontWeight: 700,
+                    color: "var(--text-0)",
+                    lineHeight: 1.35,
+                    letterSpacing: "-0.02em",
+                    marginBottom: "4px",
+                  }}
+                >
+                  {selected.goal}
+                </h2>
+                <p
+                  className="font-mono"
+                  style={{
+                    fontSize: "10px",
+                    color: "var(--text-4)",
+                    marginBottom: "20px",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {formatDate(selected.created_at)} ·{" "}
+                  {formatTime(selected.created_at)}
+                </p>
+
+                {/* Plan subtasks */}
+                {selected.plan?.subtasks?.length > 0 && (
                   <div style={{ marginBottom: "20px" }}>
+                    <h3
+                      className="font-mono"
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        color: "var(--red)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        marginBottom: "10px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "2px",
+                          background: "var(--red)",
+                        }}
+                      />
+                      Plan Subtasks
+                    </h3>
                     <div
                       style={{
                         display: "flex",
-                        alignItems: "center",
-                        gap: "8px",
-                        marginBottom: "10px",
-                        flexWrap: "wrap",
+                        flexDirection: "column",
+                        gap: "6px",
                       }}
                     >
-                      <StatChip
-                        label="Mode"
-                        value={selected.mode}
-                        color={
-                          selected.mode === "multi"
-                            ? "var(--purple)"
-                            : "var(--neon)"
-                        }
-                      />
-                      <StatChip
-                        label="Status"
-                        value={selected.status}
-                        color={
-                          selected.status === "complete"
-                            ? "var(--emerald)"
-                            : "var(--amber)"
-                        }
-                      />
-                      {selected.metadata?.total_time_seconds && (
-                        <StatChip
-                          label="Time"
-                          value={`${selected.metadata.total_time_seconds}s`}
-                          color="var(--neon)"
-                        />
-                      )}
-                      {selected.metadata?.tools_called > 0 && (
-                        <StatChip
-                          label="Tools"
-                          value={selected.metadata.tools_called}
-                          color="var(--amber)"
-                        />
-                      )}
-                    </div>
-                    <h2
-                      className="font-display"
-                      style={{
-                        fontSize: "clamp(16px, 3vw, 20px)",
-                        fontWeight: 700,
-                        color: "var(--text-0)",
-                        lineHeight: 1.35,
-                        letterSpacing: "-0.02em",
-                      }}
-                    >
-                      {selected.goal}
-                    </h2>
-                    <p
-                      style={{
-                        fontSize: "11px",
-                        color: "var(--text-4)",
-                        marginTop: "10px",
-                        fontVariantNumeric: "tabular-nums",
-                      }}
-                    >
-                      {formatDate(selected.created_at)}
-                    </p>
-                  </div>
-
-                  {selected.plan?.subtasks &&
-                    selected.plan.subtasks.length > 0 && (
-                      <div style={{ marginBottom: "20px" }}>
-                        <h3
+                      {selected.plan.subtasks.map((subtask, i) => (
+                        <div
+                          key={i}
                           style={{
+                            padding: "8px 12px",
+                            borderRadius: "var(--r-sm)",
+                            background: "var(--bg-raised)",
+                            border: "1px solid var(--border-0)",
                             fontSize: "12px",
-                            fontWeight: 700,
-                            color: "var(--text-3)",
-                            textTransform: "uppercase",
-                            letterSpacing: "0.8px",
-                            marginBottom: "10px",
+                            color: "var(--text-2)",
                             display: "flex",
-                            alignItems: "center",
-                            gap: "6px",
+                            gap: "8px",
                           }}
                         >
                           <span
+                            className="font-mono"
                             style={{
-                              width: "6px",
-                              height: "6px",
-                              borderRadius: "2px",
-                              background: "#7B61FF",
+                              color: "var(--red)",
+                              fontWeight: 700,
+                              flexShrink: 0,
+                              fontVariantNumeric: "tabular-nums",
                             }}
-                          />
-                          Plan Subtasks
-                        </h3>
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: "6px",
-                          }}
-                        >
-                          {selected.plan.subtasks.map((subtask, i) => (
-                            <div
-                              key={i}
-                              style={{
-                                padding: "8px 12px",
-                                borderRadius: "var(--r-sm)",
-                                background: "var(--bg-raised)",
-                                border: "1px solid var(--border-0)",
-                                fontSize: "12px",
-                                color: "var(--text-2)",
-                                display: "flex",
-                                gap: "8px",
-                                transition: "border-color 0.2s ease",
-                              }}
-                              onMouseEnter={(e) => {
-                                e.currentTarget.style.borderColor =
-                                  "var(--border-2)";
-                              }}
-                              onMouseLeave={(e) => {
-                                e.currentTarget.style.borderColor =
-                                  "var(--border-0)";
-                              }}
-                            >
-                              <span
-                                style={{
-                                  color: "var(--neon)",
-                                  fontWeight: 700,
-                                  flexShrink: 0,
-                                  fontVariantNumeric: "tabular-nums",
-                                }}
-                              >
-                                {i + 1}.
-                              </span>
-                              {typeof subtask === "string"
-                                ? subtask
-                                : subtask.title ||
-                                  subtask.description ||
-                                  JSON.stringify(subtask)}
-                            </div>
-                          ))}
+                          >
+                            {i + 1}.
+                          </span>
+                          {typeof subtask === "string"
+                            ? subtask
+                            : subtask.title ||
+                              subtask.description ||
+                              JSON.stringify(subtask)}
                         </div>
-                      </div>
-                    )}
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                  {selected.report ? (
-                    <div>
-                      <h3
+                {/* Report */}
+                {selected.report ? (
+                  <div>
+                    <h3
+                      className="font-mono"
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        color: "var(--gold)",
+                        textTransform: "uppercase",
+                        letterSpacing: "0.08em",
+                        marginBottom: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <span
                         style={{
-                          fontSize: "12px",
-                          fontWeight: 700,
-                          color: "var(--text-3)",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.8px",
-                          marginBottom: "12px",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            width: "6px",
-                            height: "6px",
-                            borderRadius: "2px",
-                            background: "#ffb800",
-                          }}
-                        />
-                        Report
-                      </h3>
-                      <div
-                        className="history-detail-report"
-                        style={{
-                          padding: "20px",
-                          borderRadius: "var(--r-md)",
-                          background: "var(--bg-raised)",
-                          border: "1px solid var(--border-0)",
-                          maxHeight: "500px",
-                          overflowY: "auto",
-                          scrollbarWidth: "thin",
-                          scrollbarColor: "rgba(255,255,255,0.06) transparent",
-                        }}
-                        dangerouslySetInnerHTML={{
-                          __html: renderMarkdown(selected.report),
+                          width: "6px",
+                          height: "6px",
+                          borderRadius: "2px",
+                          background: "var(--gold)",
                         }}
                       />
+                      Report
+                    </h3>
+                    <div
+                      className="modal-report"
+                      style={{
+                        padding: "20px",
+                        borderRadius: "var(--r-md)",
+                        background: "var(--bg-raised)",
+                        border: "1px solid var(--border-0)",
+                        maxHeight: "400px",
+                        overflowY: "auto",
+                        scrollbarWidth: "thin",
+                        scrollbarColor: "rgba(255,255,255,0.06) transparent",
+                      }}
+                      dangerouslySetInnerHTML={{
+                        __html: renderMarkdown(selected.report),
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      padding: "40px",
+                      textAlign: "center",
+                      color: "var(--text-4)",
+                      fontSize: "13px",
+                    }}
+                  >
+                    {selected.status === "running"
+                      ? "Task is still running..."
+                      : "No report available"}
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "12px",
+                    marginTop: "20px",
+                    flexWrap: "wrap",
+                    alignItems: "center",
+                  }}
+                >
+                  {selected.report && (
+                    <button
+                      onClick={() => handleExport(selected.task_id)}
+                      disabled={exporting}
+                      className={!exporting ? "btn-press btn-neon" : ""}
+                      style={{
+                        padding: "10px 24px",
+                        borderRadius: "var(--r-sm)",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        color: exporting ? "var(--text-3)" : "#fff",
+                        background: exporting
+                          ? "var(--bg-muted)"
+                          : "var(--grad-primary)",
+                        border: "none",
+                        cursor: exporting ? "not-allowed" : "pointer",
+                        transition: "all 0.25s ease",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "8px",
+                      }}
+                    >
+                      {exporting ? (
+                        <>
+                          <span
+                            className="spin-slow"
+                            style={{
+                              width: "14px",
+                              height: "14px",
+                              border: "2px solid rgba(255,255,255,0.3)",
+                              borderTopColor: "#fff",
+                              borderRadius: "50%",
+                              display: "inline-block",
+                            }}
+                          />{" "}
+                          Exporting...
+                        </>
+                      ) : (
+                        "📄 Export PDF"
+                      )}
+                    </button>
+                  )}
+
+                  {/* Delete — with confirmation */}
+                  {confirmDelete === selected.task_id ? (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span style={{ fontSize: "12px", color: "var(--rose)" }}>
+                        Confirm delete?
+                      </span>
                       <button
-                        onClick={() => handleExport(selected.task_id)}
-                        disabled={exporting}
-                        className={!exporting ? "btn-press btn-neon" : ""}
+                        onClick={() => handleDelete(selected.task_id)}
+                        disabled={deleting}
+                        className="btn-press"
                         style={{
-                          padding: "10px 24px",
+                          padding: "6px 16px",
                           borderRadius: "var(--r-sm)",
-                          fontSize: "12px",
-                          fontWeight: 700,
-                          color: exporting ? "var(--text-3)" : "#000",
-                          background: exporting
-                            ? "var(--bg-muted)"
-                            : "var(--grad-neon)",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          color: "#fff",
+                          background: "rgba(239,68,68,0.8)",
                           border: "none",
-                          boxShadow: exporting
-                            ? "none"
-                            : "0 2px 20px rgba(0,212,255,0.2)",
-                          cursor: exporting ? "not-allowed" : "pointer",
-                          marginTop: "16px",
-                          transition: "all 0.25s ease",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "8px",
+                          cursor: deleting ? "not-allowed" : "pointer",
                         }}
                       >
-                        {exporting ? (
-                          <>
-                            <span
-                              className="spin-slow"
-                              style={{
-                                width: "14px",
-                                height: "14px",
-                                border: "2px solid rgba(255,255,255,0.3)",
-                                borderTopColor: "#fff",
-                                borderRadius: "50%",
-                                display: "inline-block",
-                              }}
-                            />
-                            Exporting...
-                          </>
-                        ) : (
-                          <>📄 Export PDF</>
-                        )}
+                        {deleting ? "Deleting..." : "Yes, Delete"}
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(null)}
+                        className="btn-press"
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: "var(--r-sm)",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          color: "var(--text-2)",
+                          background: "var(--bg-subtle)",
+                          border: "1px solid var(--border-2)",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Cancel
                       </button>
                     </div>
                   ) : (
-                    <div
+                    <button
+                      onClick={() => setConfirmDelete(selected.task_id)}
+                      className="btn-press"
                       style={{
-                        padding: "40px",
-                        textAlign: "center",
-                        color: "var(--text-4)",
-                        fontSize: "13px",
+                        padding: "10px 20px",
+                        borderRadius: "var(--r-sm)",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: "var(--rose)",
+                        background: "transparent",
+                        border: "1px solid rgba(239,68,68,0.25)",
+                        cursor: "pointer",
+                        transition: "all 0.2s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background =
+                          "rgba(239,68,68,0.08)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "transparent";
                       }}
                     >
-                      {selected.status === "running"
-                        ? "Task is still running..."
-                        : "No report available for this task"}
-                    </div>
+                      Delete Mission
+                    </button>
                   )}
                 </div>
-              )}
+              </div>
             </div>
           </div>
         )}
@@ -638,9 +887,12 @@ export default function History() {
   );
 }
 
-function StatChip({ label, value, color }) {
+/* ── Helper Components ── */
+
+function MetaChip({ label, value, color }) {
   return (
     <div
+      className="font-mono"
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -649,11 +901,18 @@ function StatChip({ label, value, color }) {
         borderRadius: "var(--r-full)",
         background: "var(--bg-raised)",
         border: "1px solid var(--border-1)",
-        fontSize: "11px",
-        transition: "border-color 0.2s ease",
+        fontSize: "10px",
       }}
     >
-      <span style={{ color: "var(--text-4)" }}>{label}</span>
+      <span
+        style={{
+          color: "var(--text-4)",
+          letterSpacing: "0.04em",
+          textTransform: "uppercase",
+        }}
+      >
+        {label}
+      </span>
       <span style={{ color, fontWeight: 700, textTransform: "capitalize" }}>
         {value}
       </span>
@@ -677,7 +936,7 @@ function renderMarkdown(md) {
     .replace(/^\d+\. (.+)$/gm, "<li>$1</li>")
     .replace(
       /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener" style="color:var(--neon);text-decoration:underline">$1</a>',
+      '<a href="$2" target="_blank" rel="noopener">$1</a>',
     )
     .replace(
       /^---$/gm,
